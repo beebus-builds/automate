@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMS - Teacher Portfolio</title>
+  <link rel="stylesheet" href="cms.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="cms">
+    <aside class="cms__sidebar">
+      <div class="cms__sidebar-brand">
+        <h1>Portfolio CMS</h1>
+        <p>Teacher Content Editor</p>
+      </div>
+      <nav class="cms__sidebar-nav" id="sidebarNav"></nav>
+      <div class="cms__sidebar-footer">v1.0 &mdash; Teacher Portfolio Builder</div>
+    </aside>
+
+    <div class="cms__main">
+      <div class="cms__topbar">
+        <span class="cms__topbar-title" id="topbarTitle">General</span>
+        <div class="cms__topbar-actions">
+          <span class="cms-status cms-status--saved" id="saveStatus">Saved</span>
+          <button class="btn btn--outline btn--sm" id="btnLoad">Load</button>
+          <button class="btn btn--outline btn--sm" id="btnDownload">Download JSON</button>
+          <button class="btn btn--primary btn--sm" id="btnBuild">Build Website</button>
+        </div>
+      </div>
+
+      <div class="cms__content" id="cmsContent">
+      </div>
+
+      <aside class="cms-preview" id="cmsPreview">
+        <div class="cms-preview__header">
+          <span>Live Preview</span>
+          <button class="btn btn--sm btn--outline" id="btnTogglePreview">Close</button>
+        </div>
+        <div class="cms-preview__body">
+          <iframe id="previewFrame" sandbox="allow-same-origin"></iframe>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept=".json" style="display:none">
+
+  <script src="cms.js"></script>
+</body>
+</html>

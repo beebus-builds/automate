@@ -1,7 +1,15 @@
 var fs = require('fs');
 var path = require('path');
 
-var content = JSON.parse(fs.readFileSync(path.join(__dirname, 'content.json'), 'utf8'));
+var CONTENT_FILE = path.join(__dirname, 'data.json');
+
+if (!fs.existsSync(CONTENT_FILE)) {
+  console.error('data.json not found. Run `npm run build` after placing your data.json in the project root.');
+  console.error('Use the CMS (cms/cms.html) to create and edit data.json.');
+  process.exit(1);
+}
+
+var content = JSON.parse(fs.readFileSync(CONTENT_FILE, 'utf8'));
 var tpl = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 var cssTpl = fs.readFileSync(path.join(__dirname, 'css', 'style.css'), 'utf8');
 var jsSrc = fs.readFileSync(path.join(__dirname, 'js', 'script.js'), 'utf8');
