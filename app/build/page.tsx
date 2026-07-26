@@ -38,6 +38,7 @@ interface Msg {
 
 export default function BuildPage() {
   const [user, setUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [customToken, setCustomToken] = useState('');
@@ -75,6 +76,7 @@ export default function BuildPage() {
     fetch('/api/auth')
       .then((res) => res.json())
       .then(async (data) => {
+        setAuthChecked(true);
         if (data.user) {
           setUser(data.user);
           setCustomToken(data.user.vercel_token || '');
@@ -100,7 +102,7 @@ export default function BuildPage() {
           }
         }
       })
-      .catch(() => {});
+      .catch(() => setAuthChecked(true));
   }, []);
 
   // Save chat state when messages or step change (if logged in)
@@ -120,8 +122,10 @@ export default function BuildPage() {
   }, [msgs, step]);
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, [step]);
+    if (user) {
+      inputRef.current?.focus();
+    }
+  }, [step, user]);
 
   const addBot = (text: string) => setMsgs((p) => [...p, { role: 'bot', text }]);
   const addUser = (text: string) => setMsgs((p) => [...p, { role: 'user', text }]);
@@ -275,7 +279,7 @@ export default function BuildPage() {
         stats: [
           { number: years || '5', suffix: '+', label: 'Years Teaching' },
           { number: '300', suffix: '+', label: 'Students Mentored' },
-          { number: courses.length.toString() || '3', suffix: '', label: 'Courses Taught' },
+          { number: courses.length.toString() || '3', suffix: '', label: 'Subjects Taught' },
         ],
       },
       courses: courseList,
@@ -349,6 +353,52 @@ export default function BuildPage() {
 
   const progressPct = ((Object.keys(stepLabels).indexOf(step) + 1) / Object.keys(stepLabels).length) * 100;
 
+  if (!authChecked) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#090d16', color: '#94a3b8' }}>
+        Loading your session...
+      </div>
+    );
+  }
+
+  // ENFORCE AUTHENTICATION BEFORE CHATTING
+  if (!user) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#090d16', color: '#f8fafc', fontFamily: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' }}>
+        <header style={{ padding: '24px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1280, margin: '0 auto', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Logo size={38} />
+            <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#fff' }}>TeacherFolio AI</span>
+          </div>
+          <Link href="/" style={{ fontSize: '.9rem', color: '#94a3b8', textDecoration: 'none' }}>← Return Home</Link>
+        </header>
+
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, padding: 48, maxWidth: 460, width: '100%', textAlign: 'center', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>🔒</div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', margin: '0 0 12px' }}>Sign In Required</h1>
+            <p style={{ fontSize: '1rem', color: '#94a3b8', lineHeight: 1.6, marginBottom: 32 }}>
+              To start chatting with our AI assistant, memorize your conversation, and deploy your teacher portfolio, please sign in or create an account.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                style={{ padding: '16px 24px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}
+              >
+                🔐 Sign In or Register Now
+              </button>
+              <Link href="/" style={{ padding: '12px 24px', background: 'transparent', color: '#94a3b8', textDecoration: 'none', fontSize: '.9rem', fontWeight: 600 }}>
+                Back to Home
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onAuthSuccess={(u) => setUser(u)} />
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#090d16', color: '#f8fafc', fontFamily: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' }}>
       {/* Header Bar */}
@@ -362,18 +412,12 @@ export default function BuildPage() {
 
         {/* Auth status & Vercel token button */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 20 }}>
-          {user ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: '.8rem', color: '#a5b4fc', fontWeight: 600 }}>👤 {user.name} (Chat Saved)</span>
-              <button onClick={() => setShowTokenModal(!showTokenModal)} style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 8, fontSize: '.75rem', fontWeight: 600, cursor: 'pointer' }}>
-                ⚙️ My Vercel Token
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setIsAuthOpen(true)} style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '.8rem', fontWeight: 600, cursor: 'pointer' }}>
-              🔑 Sign in to Save Chat & Deploy
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '.8rem', color: '#a5b4fc', fontWeight: 600 }}>👤 {user.name} (Chat Saved)</span>
+            <button onClick={() => setShowTokenModal(!showTokenModal)} style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 8, fontSize: '.75rem', fontWeight: 600, cursor: 'pointer' }}>
+              ⚙️ My Vercel Token
             </button>
-          )}
+          </div>
         </div>
 
         {/* Progress Bar */}
