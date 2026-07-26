@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teacher Portfolio</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="header" id="header">
+    <div class="container header__inner">
+      <a href="#home" class="logo">Portfolio</a>
+      <nav class="nav" id="nav">
+        <ul class="nav__list">
+          <li><a href="#home" class="nav__link active">Home</a></li>
+          <li><a href="#about" class="nav__link">About</a></li>
+          <li><a href="#courses" class="nav__link">Courses</a></li>
+          <li><a href="#philosophy" class="nav__link">Philosophy</a></li>
+          <li><a href="#achievements" class="nav__link">Achievements</a></li>
+          <li><a href="#contact" class="nav__link">Contact</a></li>
+        </ul>
+      </nav>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="home">
+      <div class="container hero__inner">
+        <div class="hero__text">
+          <p class="hero__tagline">Welcome to My Teaching Portfolio</p>
+          <h1 class="hero__title">Empowering <span class="highlight">Every Learner</span></h1>
+          <p class="hero__desc">Passionate educator dedicated to creating engaging, inclusive, and impactful learning experiences that inspire students to reach their full potential.</p>
+          <div class="hero__actions">
+            <a href="#contact" class="btn btn--primary">Get in Touch</a>
+            <a href="#about" class="btn btn--outline">Learn More</a>
+          </div>
+        </div>
+        <div class="hero__image">
+          <div class="hero__avatar">
+            <span class="hero__avatar-text">TP</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="about">
+      <div class="container">
+        <h2 class="section__title">About Me</h2>
+        <div class="about__grid">
+          <div class="about__image">
+            <div class="about__img-placeholder">
+              <span>Your Photo</span>
+            </div>
+          </div>
+          <div class="about__content">
+            <p class="about__lead">Hello! I'm a dedicated educator with over [X] years of experience shaping young minds and fostering a love for learning.</p>
+            <p>My teaching journey has taken me through [subject/grade levels], where I've developed innovative approaches to engage students and make complex concepts accessible and enjoyable.</p>
+            <div class="about__stats">
+              <div class="stat">
+                <span class="stat__number">10+</span>
+                <span class="stat__label">Years Experience</span>
+              </div>
+              <div class="stat">
+                <span class="stat__number">500+</span>
+                <span class="stat__label">Students Mentored</span>
+              </div>
+              <div class="stat">
+                <span class="stat__number">3</span>
+                <span class="stat__label">Subject Specializations</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="courses">
+      <div class="container">
+        <h2 class="section__title">Courses Taught</h2>
+        <p class="section__subtitle">A selection of courses I've taught and developed over my teaching career.</p>
+        <div class="courses__grid">
+          <div class="course-card">
+            <div class="course-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <h3 class="course-card__title">Mathematics</h3>
+            <p class="course-card__desc">From algebra to calculus, building strong foundations in mathematical thinking and problem-solving.</p>
+            <span class="course-card__level">Grades 9-12</span>
+          </div>
+          <div class="course-card">
+            <div class="course-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <h3 class="course-card__title">Science</h3>
+            <p class="course-card__desc">Engaging students in hands-on experiments and inquiry-based learning to explore the natural world.</p>
+            <span class="course-card__level">Grades 7-10</span>
+          </div>
+          <div class="course-card">
+            <div class="course-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+            </div>
+            <h3 class="course-card__title">Physics</h3>
+            <p class="course-card__desc">Making physics intuitive through real-world applications and interactive demonstrations.</p>
+            <span class="course-card__level">Grades 11-12</span>
+          </div>
+          <div class="course-card">
+            <div class="course-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <h3 class="course-card__title">Computer Science</h3>
+            <p class="course-card__desc">Introduction to programming, algorithms, and computational thinking for the digital age.</p>
+            <span class="course-card__level">Grades 9-12</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="philosophy">
+      <div class="container">
+        <h2 class="section__title">Teaching Philosophy</h2>
+        <div class="philosophy__content">
+          <blockquote class="philosophy__quote">
+            <p>"Education is not the filling of a pail, but the lighting of a fire."</p>
+            <cite>&mdash; William Butler Yeats</cite>
+          </blockquote>
+          <div class="philosophy__points">
+            <div class="philosophy__point">
+              <h3>Student-Centered Learning</h3>
+              <p>I believe every student is unique and learns differently. My approach focuses on scaffolding instruction to meet individual needs while fostering independence and critical thinking.</p>
+            </div>
+            <div class="philosophy__point">
+              <h3>Inclusive Classroom</h3>
+              <p>Creating a safe and welcoming environment where all students feel valued, respected, and encouraged to participate and express their ideas.</p>
+            </div>
+            <div class="philosophy__point">
+              <h3>Real-World Connections</h3>
+              <p>Linking curriculum to real-life applications and current events helps students understand the relevance and importance of what they are learning.</p>
+            </div>
+            <div class="philosophy__point">
+              <h3>Continuous Growth</h3>
+              <p>Both students and teachers should embrace lifelong learning. I regularly seek feedback, attend professional development, and adapt my methods to improve.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--alt" id="achievements">
+      <div class="container">
+        <h2 class="section__title">Achievements & Recognition</h2>
+        <div class="achievements__grid">
+          <div class="achievement-card">
+            <span class="achievement-card__year">2023</span>
+            <h3 class="achievement-card__title">Distinguished Teacher Award</h3>
+            <p>Recognized for outstanding contributions to student achievement and innovative teaching practices.</p>
+          </div>
+          <div class="achievement-card">
+            <span class="achievement-card__year">2022</span>
+            <h3 class="achievement-card__title">Curriculum Development Lead</h3>
+            <p>Led the development of a new interdisciplinary STEM curriculum adopted across 12 schools.</p>
+          </div>
+          <div class="achievement-card">
+            <span class="achievement-card__year">2021</span>
+            <h3 class="achievement-card__title">Student Mentorship Excellence</h3>
+            <p>Awarded for exceptional dedication to mentoring underprivileged students in academic programs.</p>
+          </div>
+          <div class="achievement-card">
+            <span class="achievement-card__year">2019</span>
+            <h3 class="achievement-card__title">Presented at National Ed Conference</h3>
+            <p>Shared research on adaptive learning strategies at the National Education Technology Conference.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="contact">
+      <div class="container">
+        <h2 class="section__title">Get in Touch</h2>
+        <p class="section__subtitle">Have a question or want to collaborate? I'd love to hear from you.</p>
+        <div class="contact__grid">
+          <div class="contact__info">
+            <div class="contact__info-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <div>
+                <h4>Email</h4>
+                <p>teacher@example.com</p>
+              </div>
+            </div>
+            <div class="contact__info-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              <div>
+                <h4>Phone</h4>
+                <p>+1 (555) 123-4567</p>
+              </div>
+            </div>
+            <div class="contact__info-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <div>
+                <h4>Location</h4>
+                <p>City, State / Country</p>
+              </div>
+            </div>
+          </div>
+          <form class="contact__form" id="contactForm">
+            <div class="form__group">
+              <label for="name">Name</label>
+              <input type="text" id="name" name="name" placeholder="Your name" required>
+            </div>
+            <div class="form__group">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" placeholder="your@email.com" required>
+            </div>
+            <div class="form__group">
+              <label for="subject">Subject</label>
+              <input type="text" id="subject" name="subject" placeholder="How can I help?">
+            </div>
+            <div class="form__group">
+              <label for="message">Message</label>
+              <textarea id="message" name="message" rows="5" placeholder="Write your message..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn--primary btn--full">Send Message</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <p class="footer__copy">&copy; 2026 Teacher Portfolio. All rights reserved.</p>
+      <div class="footer__social">
+        <a href="#" aria-label="LinkedIn" class="footer__social-link">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+        </a>
+        <a href="#" aria-label="Twitter" class="footer__social-link">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
+        </a>
+        <a href="#" aria-label="GitHub" class="footer__social-link">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/script.js"></script>
+</body>
+</html>
