@@ -3,154 +3,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{SITE_TITLE}}</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Teacher Portfolio Builder</title>
+  <link rel="stylesheet" href="css/home.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header class="header" id="header">
-    <div class="container header__inner">
-      <a href="#home" class="logo">{{SITE_TITLE}}</a>
-      <nav class="nav" id="nav">
-        <ul class="nav__list">
-          <li><a href="#home" class="nav__link active">Home</a></li>
-          <li><a href="#about" class="nav__link">About</a></li>
-          <li><a href="#courses" class="nav__link">Courses</a></li>
-          <li><a href="#philosophy" class="nav__link">Philosophy</a></li>
-          <li><a href="#achievements" class="nav__link">Achievements</a></li>
-          <li><a href="#contact" class="nav__link">Contact</a></li>
-        </ul>
+  <header class="home-header">
+    <div class="container home-header__inner">
+      <a href="#" class="home-logo">PortfolioBuilder</a>
+      <nav class="home-nav">
+        <a href="#how" class="home-nav__link">How It Works</a>
+        <a href="#features" class="home-nav__link">Features</a>
+        <a href="#builder" class="home-nav__link">Builder</a>
       </nav>
-      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
     </div>
   </header>
 
   <main>
-    <section class="hero" id="home">
+    <section class="hero" id="hero">
       <div class="container hero__inner">
         <div class="hero__text">
-          <p class="hero__tagline">{{HERO_TAGLINE}}</p>
-          <h1 class="hero__title">Empowering <span class="highlight">{{HERO_HIGHLIGHT}}</span></h1>
-          <p class="hero__desc">{{HERO_DESC}}</p>
+          <p class="hero__tagline">Built for Teachers</p>
+          <h1 class="hero__title">Build Your <span class="highlight">Portfolio</span> in Minutes</h1>
+          <p class="hero__desc">A simple, powerful tool that lets any teacher create a beautiful professional portfolio website — no coding required.</p>
           <div class="hero__actions">
-            <a href="#contact" class="btn btn--primary">Get in Touch</a>
-            <a href="#about" class="btn btn--outline">Learn More</a>
+            <a href="#builder" class="btn btn--primary">Start Building</a>
+            <a href="#how" class="btn btn--outline">See How</a>
           </div>
         </div>
         <div class="hero__image">
           <div class="hero__avatar">
-            <span class="hero__avatar-text">{{INITIALS}}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section" id="about">
+    <section class="section" id="how">
       <div class="container">
-        <h2 class="section__title">About Me</h2>
-        <div class="about__grid">
-          <div class="about__image">
-            <div class="about__img-placeholder">
-              <span>Your Photo</span>
-            </div>
+        <h2 class="section__title">How It Works</h2>
+        <div class="steps">
+          <div class="step">
+            <span class="step__number">1</span>
+            <h3 class="step__title">Open the CMS</h3>
+            <p>Visit the admin panel and fill in your details through simple forms.</p>
           </div>
-          <div class="about__content">
-            <p class="about__lead">{{ABOUT_LEAD}}</p>
-            {{ABOUT_P1}}
-            {{ABOUT_P2}}
-            {{STATS_HTML}}
+          <div class="step">
+            <span class="step__number">2</span>
+            <h3 class="step__title">Edit & Preview</h3>
+            <p>Make changes and see them live in the preview panel instantly.</p>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section section--alt" id="courses">
-      <div class="container">
-        <h2 class="section__title">Courses Taught</h2>
-        <p class="section__subtitle">A selection of courses I have taught and developed over my teaching career.</p>
-        <div class="courses__grid">
-          {{COURSES_HTML}}
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="philosophy">
-      <div class="container">
-        <h2 class="section__title">Teaching Philosophy</h2>
-        <div class="philosophy__content">
-          <blockquote class="philosophy__quote">
-            <p>"{{PHILOSOPHY_QUOTE}}"</p>
-            <cite>{{PHILOSOPHY_CITE}}</cite>
-          </blockquote>
-          <div class="philosophy__points">
-            {{PHILOSOPHY_POINTS_HTML}}
+          <div class="step">
+            <span class="step__number">3</span>
+            <h3 class="step__title">Build & Deploy</h3>
+            <p>Run one command and get a complete, ready-to-publish website.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section section--alt" id="achievements">
+    <section class="section section--alt" id="features">
       <div class="container">
-        <h2 class="section__title">Achievements &amp; Recognition</h2>
-        <div class="achievements__grid">
-          {{ACHIEVEMENTS_HTML}}
+        <h2 class="section__title">Everything You Need</h2>
+        <div class="features__grid">
+          <div class="feature-card">
+            <div class="feature-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </div>
+            <h3>Visual Editor</h3>
+            <p>Fill in forms, pick colors, arrange content — no code needed.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+            </div>
+            <h3>Live Preview</h3>
+            <p>See your changes in real time before publishing.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <h3>Customizable</h3>
+            <p>Change colors, fonts, sections — make it truly yours.</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-card__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <h3>Fast & Responsive</h3>
+            <p>Works on any device with zero dependencies.</p>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="section" id="contact">
+    <section class="section" id="builder">
       <div class="container">
-        <h2 class="section__title">Get in Touch</h2>
-        <p class="section__subtitle">Have a question or want to collaborate? I would love to hear from you.</p>
-        <div class="contact__grid">
-          <div class="contact__info">
-            <div class="contact__info-item">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              <div>
-                <h4>Email</h4>
-                <p>{{CONTACT_EMAIL}}</p>
-              </div>
+        <h2 class="section__title">Start Building</h2>
+        <p class="section__subtitle">Open the CMS editor and start creating your portfolio right now.</p>
+        <div class="builder__actions">
+          <a href="cms/cms.html" class="btn btn--primary btn--lg">Open CMS Editor</a>
+          <a href="README.md" class="btn btn--outline btn--lg">Read Documentation</a>
+        </div>
+        <div class="builder__showcase">
+          <div class="builder__showcase-card">
+            <div class="builder__showcase-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
             </div>
-            <div class="contact__info-item">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-              <div>
-                <h4>Phone</h4>
-                <p>{{CONTACT_PHONE}}</p>
-              </div>
-            </div>
-            <div class="contact__info-item">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              <div>
-                <h4>Location</h4>
-                <p>{{CONTACT_LOCATION}}</p>
-              </div>
-            </div>
+            <h3>CMS Editor</h3>
+            <p>Visual form-based editor with live preview</p>
           </div>
-          <form class="contact__form" id="contactForm">
-            <div class="form__group">
-              <label for="name">Name</label>
-              <input type="text" id="name" name="name" placeholder="Your name" required>
+          <div class="builder__showcase-card">
+            <div class="builder__showcase-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </div>
-            <div class="form__group">
-              <label for="email">Email</label>
-              <input type="email" id="email" name="email" placeholder="your@email.com" required>
+            <h3>Download</h3>
+            <p>Export your data as JSON</p>
+          </div>
+          <div class="builder__showcase-card">
+            <div class="builder__showcase-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <div class="form__group">
-              <label for="subject">Subject</label>
-              <input type="text" id="subject" name="subject" placeholder="How can I help?">
-            </div>
-            <div class="form__group">
-              <label for="message">Message</label>
-              <textarea id="message" name="message" rows="5" placeholder="Write your message..." required></textarea>
-            </div>
-            <button type="submit" class="btn btn--primary btn--full">Send Message</button>
-          </form>
+            <h3>Build</h3>
+            <p>Generate a ready-to-deploy website</p>
+          </div>
         </div>
       </div>
     </section>
@@ -158,17 +137,8 @@
 
   <footer class="footer">
     <div class="container footer__inner">
-      <p class="footer__copy">&copy; {{YEAR}} {{SITE_TITLE}}. All rights reserved.</p>
-      <div class="footer__social">
-        <a href="#" aria-label="LinkedIn" class="footer__social-link">LI</a>
-        <a href="#" aria-label="Twitter" class="footer__social-link">TW</a>
-        <a href="#" aria-label="GitHub" class="footer__social-link">GH</a>
-      </div>
+      <p class="footer__copy">Teacher Portfolio Builder</p>
     </div>
   </footer>
-
-  <div class="toast" id="toast"></div>
-
-  <script src="js/script.js"></script>
 </body>
 </html>

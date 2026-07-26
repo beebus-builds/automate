@@ -10,7 +10,7 @@ if (!fs.existsSync(CONTENT_FILE)) {
 }
 
 var content = JSON.parse(fs.readFileSync(CONTENT_FILE, 'utf8'));
-var tpl = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+var tpl = fs.readFileSync(path.join(__dirname, 'template.html'), 'utf8');
 var cssTpl = fs.readFileSync(path.join(__dirname, 'css', 'style.css'), 'utf8');
 var jsSrc = fs.readFileSync(path.join(__dirname, 'js', 'script.js'), 'utf8');
 
