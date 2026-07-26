@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/Logo';
+import { AuthModal } from '@/components/AuthModal';
 
 const themes = [
   { id: 'modern', label: 'Modern Indigo', primary: '#4f46e5', accent: '#059669' },
@@ -36,6 +37,12 @@ interface Msg {
 }
 
 export default function BuildPage() {
+  const [user, setUser] = useState<any>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [customToken, setCustomToken] = useState('');
+  const [tokenSavedMsg, setTokenSavedMsg] = useState('');
+
   const [msgs, setMsgs] = useState<Msg[]>([
     {
       role: 'bot',
@@ -62,6 +69,51 @@ export default function BuildPage() {
   const [deployUrl, setDeployUrl] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Load user & chat state on mount
+  useEffect(() => {
+    fetch('/api/auth')
+      .then((res) => res.json())
+      .then(async (data) => {
+        if (data.user) {
+          setUser(data.user);
+          setCustomToken(data.user.vercel_token || '');
+          // Load chat state
+          const chatRes = await fetch('/api/chat');
+          const chatData = await chatRes.json();
+          if (chatData.state && chatData.state.messages?.length > 0) {
+            setMsgs(chatData.state.messages);
+            setStep(chatData.state.step || 'name');
+            if (chatData.state.data) {
+              const d = chatData.state.data;
+              if (d.name) setName(d.name);
+              if (d.subject) setSubject(d.subject);
+              if (d.years) setYears(d.years);
+              if (d.bio) setBio(d.bio);
+              if (d.courses) setCourses(d.courses);
+              if (d.quote) setQuote(d.quote);
+              if (d.achievements) setAchievements(d.achievements);
+              if (d.email) setEmail(d.email);
+              if (d.phone) setPhone(d.phone);
+              if (d.theme) setSelectedTheme(d.theme);
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Save chat state when messages or step change (if logged in)
+  useEffect(() => {
+    if (user && msgs.length > 1) {
+      const stateData = { name, subject, years, bio, courses, quote, achievements, email, phone, theme: selectedTheme };
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: msgs, step, data: stateData }),
+      }).catch(() => {});
+    }
+  }, [msgs, step]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -279,6 +331,22 @@ export default function BuildPage() {
     }
   };
 
+  const saveCustomToken = async () => {
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'token', vercel_token: customToken }),
+      });
+      if (res.ok) {
+        setTokenSavedMsg('✅ Vercel Token saved to your account!');
+        setTimeout(() => setTokenSavedMsg(''), 3000);
+      }
+    } catch {
+      setTokenSavedMsg('❌ Failed to save token');
+    }
+  };
+
   const progressPct = ((Object.keys(stepLabels).indexOf(step) + 1) / Object.keys(stepLabels).length) * 100;
 
   return (
@@ -290,16 +358,51 @@ export default function BuildPage() {
           <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.3px' }}>TeacherFolio AI</span>
         </Link>
         <div style={{ height: 16, width: 1, background: 'rgba(255,255,255,0.15)' }} />
-        <Link href="/" style={{ fontSize: '.85rem', color: '#94a3b8', textDecoration: 'none', fontWeight: 500 }}>← Back to Home</Link>
+        <Link href="/" style={{ fontSize: '.85rem', color: '#94a3b8', textDecoration: 'none', fontWeight: 500 }}>← Home</Link>
+
+        {/* Auth status & Vercel token button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 20 }}>
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '.8rem', color: '#a5b4fc', fontWeight: 600 }}>👤 {user.name} (Chat Saved)</span>
+              <button onClick={() => setShowTokenModal(!showTokenModal)} style={{ padding: '6px 12px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 8, fontSize: '.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                ⚙️ My Vercel Token
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setIsAuthOpen(true)} style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '.8rem', fontWeight: 600, cursor: 'pointer' }}>
+              🔑 Sign in to Save Chat & Deploy
+            </button>
+          )}
+        </div>
 
         {/* Progress Bar */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 280, width: '100%' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 240, width: '100%' }}>
           <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${progressPct}%`, background: 'linear-gradient(90deg, #6366f1, #a855f7)', borderRadius: 999, transition: 'width 0.3s ease' }} />
           </div>
           <span style={{ fontSize: '.75rem', fontWeight: 700, color: '#a5b4fc', minWidth: 32 }}>{Math.round(progressPct)}%</span>
         </div>
       </header>
+
+      {/* Vercel Token Modal / Drawer */}
+      {showTokenModal && (
+        <div style={{ background: '#1e293b', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '16px 28px', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ fontSize: '.85rem', fontWeight: 700, color: '#fff' }}>🔑 Personal Vercel Token:</span>
+          <input
+            type="password"
+            value={customToken}
+            onChange={(e) => setCustomToken(e.target.value)}
+            placeholder="Paste your vercel token here..."
+            style={{ flex: 1, maxWidth: 360, padding: '8px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: '.85rem', outline: 'none' }}
+          />
+          <button onClick={saveCustomToken} style={{ padding: '8px 16px', background: '#6366f1', color: '#fff', border: 'none', borderRadius: 8, fontSize: '.82rem', fontWeight: 700, cursor: 'pointer' }}>
+            Save Token
+          </button>
+          {tokenSavedMsg && <span style={{ fontSize: '.8rem', color: '#34d399', fontWeight: 600 }}>{tokenSavedMsg}</span>}
+          <button onClick={() => setShowTokenModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', marginLeft: 'auto' }}>✕</button>
+        </div>
+      )}
 
       {/* Main Chat Area */}
       <main style={{ flex: 1, overflowY: 'auto', padding: '32px 20px', scrollBehavior: 'smooth' }}>
@@ -480,6 +583,8 @@ export default function BuildPage() {
           </div>
         </footer>
       )}
+
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onAuthSuccess={(u) => setUser(u)} />
     </div>
   );
 }

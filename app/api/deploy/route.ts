@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent, runBuild } from '@/lib/db';
+import { getSessionUser } from '@/lib/auth';
 import path from 'path';
 import fs from 'fs';
 
@@ -35,7 +36,8 @@ export async function POST(request: NextRequest) {
     await runBuild(data);
   }
 
-  const token = process.env.VERCEL_TOKEN;
+  const sessionUser = await getSessionUser();
+  const token = sessionUser?.vercel_token || process.env.VERCEL_TOKEN;
   if (token) {
     try {
       const files = getFilesRecursively(siteDir);

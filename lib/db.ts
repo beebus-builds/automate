@@ -2,13 +2,46 @@ import { Pool } from 'pg';
 import path from 'path';
 import fs from 'fs';
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 async function initTables() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      name TEXT NOT NULL,
+      vercel_token TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      token TEXT PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      expires_at TIMESTAMPTZ NOT NULL
+    );
+  `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS content (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       data JSONB NOT NULL
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_content (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      data JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS chat_state (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      messages JSONB NOT NULL DEFAULT '[]',
+      step TEXT NOT NULL DEFAULT 'name',
+      data JSONB NOT NULL DEFAULT '{}',
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
   await pool.query(`
@@ -39,15 +72,37 @@ initTables().catch(err => {
   }
 });
 
-export async function getContent(): Promise<any> {
+export async function getContent(userId?: number): Promise<any> {
+  if (userId) {
+    const { rows } = await pool.query('SELECT data FROM user_content WHERE user_id = $1', [userId]);
+    if (rows.length > 0) return rows[0].data;
+  }
   const { rows } = await pool.query('SELECT data FROM content WHERE id = 1');
   return rows.length > 0 ? rows[0].data : {};
 }
 
-export async function saveContent(data: any): Promise<void> {
+export async function saveContent(data: any, userId?: number): Promise<void> {
+  if (userId) {
+    await pool.query(
+      'INSERT INTO user_content (user_id, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (user_id) DO UPDATE SET data = $2, updated_at = NOW()',
+      [userId, JSON.stringify(data)]
+    );
+  }
   await pool.query(
     'INSERT INTO content (id, data) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET data = $1',
     [JSON.stringify(data)]
+  );
+}
+
+export async function getChatState(userId: number): Promise<any> {
+  const { rows } = await pool.query('SELECT messages, step, data FROM chat_state WHERE user_id = $1', [userId]);
+  return rows.length > 0 ? rows[0] : null;
+}
+
+export async function saveChatState(userId: number, messages: any, step: string, data: any): Promise<void> {
+  await pool.query(
+    'INSERT INTO chat_state (user_id, messages, step, data, updated_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO UPDATE SET messages = $2, step = $3, data = $4, updated_at = NOW()',
+    [userId, JSON.stringify(messages), step, JSON.stringify(data)]
   );
 }
 

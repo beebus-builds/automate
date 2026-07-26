@@ -1,9 +1,32 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/Logo';
+import { AuthModal } from '@/components/AuthModal';
 
 export default function HomePage() {
+  const [user, setUser] = useState<any>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.user) setUser(data.user);
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'logout' }),
+    });
+    setUser(null);
+  };
+
   return (
     <div style={{ minHeight: '100vh', background: '#090d16', color: '#f8fafc', fontFamily: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif', overflowX: 'hidden' }}>
       {/* Ambient background glows */}
@@ -15,10 +38,22 @@ export default function HomePage() {
           <Logo size={38} />
           <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.5px', color: '#fff' }}>TeacherFolio</span>
         </div>
-        <nav style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+        <nav style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
           <Link href="/cms" style={{ padding: '10px 18px', color: '#94a3b8', fontWeight: 600, textDecoration: 'none', fontSize: '.9rem', transition: 'color 0.2s' }}>
             CMS Dashboard
           </Link>
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: '.85rem', color: '#a5b4fc', fontWeight: 600 }}>👤 {user.name}</span>
+              <button onClick={handleLogout} style={{ padding: '8px 14px', background: 'rgba(239,68,68,0.15)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, fontSize: '.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                Logout
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setIsAuthOpen(true)} style={{ padding: '10px 18px', background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, fontSize: '.9rem', fontWeight: 600, cursor: 'pointer' }}>
+              Sign In
+            </button>
+          )}
           <Link href="/build" style={{ padding: '11px 24px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: '#fff', borderRadius: 12, fontWeight: 700, textDecoration: 'none', fontSize: '.9rem', boxShadow: '0 0 25px rgba(99,102,241,0.4)', transition: 'transform 0.15s, box-shadow 0.15s' }}>
             Create Portfolio ✨
           </Link>
@@ -154,6 +189,8 @@ export default function HomePage() {
       <footer style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '40px 48px', textAlign: 'center', fontSize: '.9rem', color: '#64748b', background: '#06090f' }}>
         TeacherFolio — Empowering educators with world-class digital portfolios.
       </footer>
+
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onAuthSuccess={(u) => setUser(u)} />
     </div>
   );
 }
