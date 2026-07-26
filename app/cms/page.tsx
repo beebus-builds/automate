@@ -75,12 +75,12 @@ function CMSInner() {
           <span className="cms-topbar-title">{currentLabel}</span>
           <div className="cms-topbar-actions">
             <span className={'cms-status ' + (changed ? 'cms-status--unsaved' : 'cms-status--saved')}>
-              {changed ? 'Unsaved' : 'Saved to DB'}
+              {changed ? 'Unsaved' : 'Saved'}
             </span>
             <button className="cms-btn cms-btn--secondary" onClick={undo}>↩ Undo</button>
-            <button className="cms-btn cms-btn--secondary" onClick={save}>💾 Save Now</button>
             <button className="cms-btn cms-btn--secondary" onClick={togglePreview}>👁 Preview</button>
             <button className="cms-btn cms-btn--primary" onClick={triggerBuild}>🚀 Build Site</button>
+            <a href="/_site" target="_blank" className="cms-btn cms-btn--secondary" style={{ textDecoration: 'none' }}>🌐 View Site</a>
           </div>
         </div>
 
