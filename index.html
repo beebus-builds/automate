@@ -3,142 +3,397 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teacher Portfolio Builder</title>
+  <title>Teacher Portfolio Builder — Create Your Professional Educator Site</title>
   <link rel="stylesheet" href="css/home.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header class="home-header">
+  <!-- Background Glow & Grid Overlay -->
+  <div class="bg-glow"></div>
+  <div class="bg-grid"></div>
+
+  <!-- Header Navigation -->
+  <header class="home-header" id="header">
     <div class="container home-header__inner">
-      <a href="#" class="home-logo">PortfolioBuilder</a>
+      <a href="#" class="home-logo">
+        <span class="home-logo__icon">🎓</span>
+        <span class="home-logo__text">Edu<span class="gradient-text">Portfolio</span></span>
+      </a>
       <nav class="home-nav">
-        <a href="#how" class="home-nav__link">How It Works</a>
+        <a href="#hero" class="home-nav__link">Home</a>
         <a href="#features" class="home-nav__link">Features</a>
-        <a href="#builder" class="home-nav__link">Builder</a>
+        <a href="#themes" class="home-nav__link">Themes</a>
+        <a href="#how" class="home-nav__link">How It Works</a>
       </nav>
+      <div class="home-header__actions">
+        <a href="cms/cms.html" class="btn btn--primary btn--glow">
+          <span>Open CMS Editor</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
     </div>
   </header>
 
   <main>
+    <!-- Modern Hero Section -->
     <section class="hero" id="hero">
       <div class="container hero__inner">
         <div class="hero__text">
-          <p class="hero__tagline">Built for Teachers</p>
-          <h1 class="hero__title">Build Your <span class="highlight">Portfolio</span> in Minutes</h1>
-          <p class="hero__desc">A simple, powerful tool that lets any teacher create a beautiful professional portfolio website — no coding required.</p>
+          <div class="pill-badge">
+            <span class="pill-badge__icon">✨</span>
+            <span>No-Code Website Generator for Educators</span>
+          </div>
+          <h1 class="hero__title">
+            Craft Your Teaching <br>
+            <span class="gradient-text">Legacy Online</span>
+          </h1>
+          <p class="hero__desc">
+            Empower your professional career with a modern, beautifully designed educator portfolio. Showcase your courses, teaching philosophy, and achievements effortlessly.
+          </p>
+
           <div class="hero__actions">
-            <a href="#builder" class="btn btn--primary">Start Building</a>
-            <a href="#how" class="btn btn--outline">See How</a>
+            <a href="cms/cms.html" class="btn btn--primary btn--xl btn--glow">
+              <span>Build Your Portfolio Free</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+            <a href="#themes" class="btn btn--secondary btn--xl">
+              <span>Explore 5 Themes</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            </a>
+          </div>
+
+          <div class="hero__trust">
+            <div class="trust-item">
+              <span class="trust-item__value">100%</span>
+              <span class="trust-item__label">Code-Free Editing</span>
+            </div>
+            <div class="trust-divider"></div>
+            <div class="trust-item">
+              <span class="trust-item__value">5</span>
+              <span class="trust-item__label">Design Themes</span>
+            </div>
+            <div class="trust-divider"></div>
+            <div class="trust-item">
+              <span class="trust-item__value">Instant</span>
+              <span class="trust-item__label">Live Preview</span>
+            </div>
           </div>
         </div>
-        <div class="hero__image">
-          <div class="hero__avatar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+
+        <!-- Modern Hero Visual / Interactive Preview Card -->
+        <div class="hero__visual">
+          <div class="hero-card">
+            <div class="hero-card__topbar">
+              <div class="browser-dots">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="browser-address">teacher-portfolio.edu</div>
+            </div>
+            <div class="hero-card__body">
+              <div class="teacher-profile">
+                <div class="teacher-profile__avatar">
+                  <span>TP</span>
+                  <div class="online-badge" title="Active Educator"></div>
+                </div>
+                <div class="teacher-profile__info">
+                  <h3>Prof. Elena Rostova</h3>
+                  <p>Senior Educator &amp; Physics Department Lead</p>
+                  <div class="teacher-profile__tags">
+                    <span class="tag tag--accent">12+ Yrs Experience</span>
+                    <span class="tag">Stem Leader</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mini-stats">
+                <div class="mini-stat">
+                  <span class="mini-stat__num">500+</span>
+                  <span class="mini-stat__lbl">Students</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-stat__num">14</span>
+                  <span class="mini-stat__lbl">Courses</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-stat__num">4.9★</span>
+                  <span class="mini-stat__lbl">Rating</span>
+                </div>
+              </div>
+
+              <div class="mini-courses">
+                <div class="mini-course-item">
+                  <div class="mini-course-item__icon">🔬</div>
+                  <div>
+                    <strong>Quantum Mechanics</strong>
+                    <p>Advanced Grade 11-12 Physics</p>
+                  </div>
+                </div>
+                <div class="mini-course-item">
+                  <div class="mini-course-item__icon">📐</div>
+                  <div>
+                    <strong>Applied Mathematics</strong>
+                    <p>Calculus &amp; Problem Solving</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Floating Hero Accents -->
+            <div class="floating-badge floating-badge--top">
+              <span class="floating-badge__icon">⭐</span>
+              <div>
+                <strong>Distinguished Teacher</strong>
+                <span>Award Winner 2023</span>
+              </div>
+            </div>
+
+            <div class="floating-badge floating-badge--bottom">
+              <span class="floating-badge__icon">🚀</span>
+              <div>
+                <strong>Live Preview CMS</strong>
+                <span>Instant customization</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- Features Grid -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-header__tag">POWERFUL FEATURES</span>
+          <h2 class="section-header__title">Designed for Modern Educators</h2>
+          <p class="section-header__desc">Everything you need to showcase your achievements, curriculum, and teaching philosophy without writing a single line of code.</p>
+        </div>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-card__icon feature-card__icon--primary">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <h3>Visual CMS Panel</h3>
+            <p>Intuitive form-based admin area with instant auto-save to craft your content hassle-free.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-card__icon feature-card__icon--accent">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <h3>Real-Time Live Preview</h3>
+            <p>See exactly how your website looks as you edit text, upload photos, or change colors.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-card__icon feature-card__icon--purple">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+            </div>
+            <h3>5 Design Presets</h3>
+            <p>Switch between Modern, Warm, Academic, Creative, and Minimal styles in one click.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-card__icon feature-card__icon--rose">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <h3>One-Click Static Generation</h3>
+            <p>Generate lightning-fast HTML/CSS files ready for hosting on GitHub Pages, Netlify, or Vercel.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Theme Showcase & Selector -->
+    <section class="section section--alt" id="themes">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-header__tag">PRE-BUILT THEMES</span>
+          <h2 class="section-header__title">Choose a Style That Fits Your Persona</h2>
+          <p class="section-header__desc">Select from tailored color palettes, custom typography, and layout presets.</p>
+        </div>
+
+        <div class="theme-tabs" id="themeTabs">
+          <button class="theme-tab active" data-theme="modern">
+            <span class="theme-tab__swatch" style="background:#4f46e5;"></span>
+            <span>Modern</span>
+          </button>
+          <button class="theme-tab" data-theme="warm">
+            <span class="theme-tab__swatch" style="background:#d97706;"></span>
+            <span>Warm</span>
+          </button>
+          <button class="theme-tab" data-theme="academic">
+            <span class="theme-tab__swatch" style="background:#1e3a8a;"></span>
+            <span>Academic</span>
+          </button>
+          <button class="theme-tab" data-theme="creative">
+            <span class="theme-tab__swatch" style="background:#db2777;"></span>
+            <span>Creative</span>
+          </button>
+          <button class="theme-tab" data-theme="minimal">
+            <span class="theme-tab__swatch" style="background:#000000;"></span>
+            <span>Minimal</span>
+          </button>
+        </div>
+
+        <div class="theme-preview-card" id="themePreviewCard">
+          <div class="theme-preview-card__header">
+            <span class="theme-preview-card__badge" id="previewThemeBadge">Modern Theme</span>
+            <span class="theme-preview-card__desc" id="previewThemeDesc">Clean purple &amp; green scheme with modern typography</span>
+          </div>
+          <div class="theme-preview-card__preview-window" id="previewWindow">
+            <div class="demo-hero">
+              <span class="demo-hero__tag" id="demoTag">WELCOME TO MY PORTFOLIO</span>
+              <h3 class="demo-hero__title" id="demoTitle">Empowering <span id="demoHighlight">Every Student</span></h3>
+              <p id="demoDesc">Dedicated educator creating accessible, engaging, and inspiring learning experiences.</p>
+              <div class="demo-actions">
+                <button class="demo-btn demo-btn--primary" id="demoBtnPrimary">Get in Touch</button>
+                <button class="demo-btn demo-btn--outline" id="demoBtnOutline">Learn More</button>
+              </div>
+            </div>
+          </div>
+          <div class="theme-preview-card__footer">
+            <a href="cms/cms.html" class="btn btn--primary btn--glow">Use This Theme in CMS &rarr;</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Timeline -->
     <section class="section" id="how">
       <div class="container">
-        <h2 class="section__title">How It Works</h2>
-        <div class="steps">
-          <div class="step">
-            <span class="step__number">1</span>
-            <h3 class="step__title">Open the CMS</h3>
-            <p>Visit the admin panel and fill in your details through simple forms.</p>
+        <div class="section-header">
+          <span class="section-header__tag">SIMPLE WORKFLOW</span>
+          <h2 class="section-header__title">Three Steps to Your Live Portfolio</h2>
+          <p class="section-header__desc">No setup, no server required. Build directly in your browser.</p>
+        </div>
+
+        <div class="workflow-grid">
+          <div class="workflow-card">
+            <div class="workflow-card__step">01</div>
+            <h3>Fill Out Content in CMS</h3>
+            <p>Enter your bio, courses taught, education, philosophy, and achievements into organized CMS form tabs.</p>
           </div>
-          <div class="step">
-            <span class="step__number">2</span>
-            <h3 class="step__title">Edit & Preview</h3>
-            <p>Make changes and see them live in the preview panel instantly.</p>
+          <div class="workflow-card">
+            <div class="workflow-card__step">02</div>
+            <h3>Pick Theme &amp; Preview</h3>
+            <p>Customize primary &amp; accent colors, layout widths, and preview changes live in real time.</p>
           </div>
-          <div class="step">
-            <span class="step__number">3</span>
-            <h3 class="step__title">Build & Deploy</h3>
-            <p>Run one command and get a complete, ready-to-publish website.</p>
+          <div class="workflow-card">
+            <div class="workflow-card__step">03</div>
+            <h3>Export &amp; Run Build</h3>
+            <p>Download your data file and execute <code>npm run build</code> to publish your static portfolio!</p>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section section--alt" id="features">
+    <!-- High Impact CTA Banner -->
+    <section class="cta-banner">
       <div class="container">
-        <h2 class="section__title">Everything You Need</h2>
-        <div class="features__grid">
-          <div class="feature-card">
-            <div class="feature-card__icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-            </div>
-            <h3>Visual Editor</h3>
-            <p>Fill in forms, pick colors, arrange content — no code needed.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-card__icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-            </div>
-            <h3>Live Preview</h3>
-            <p>See your changes in real time before publishing.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-card__icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-            </div>
-            <h3>Customizable</h3>
-            <p>Change colors, fonts, sections — make it truly yours.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-card__icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            </div>
-            <h3>Fast & Responsive</h3>
-            <p>Works on any device with zero dependencies.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="builder">
-      <div class="container">
-        <h2 class="section__title">Start Building</h2>
-        <p class="section__subtitle">Open the CMS editor and start creating your portfolio right now.</p>
-        <div class="builder__actions">
-          <a href="cms/cms.html" class="btn btn--primary btn--lg">Open CMS Editor</a>
-          <a href="README.md" class="btn btn--outline btn--lg">Read Documentation</a>
-        </div>
-        <div class="builder__showcase">
-          <div class="builder__showcase-card">
-            <div class="builder__showcase-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </div>
-            <h3>CMS Editor</h3>
-            <p>Visual form-based editor with live preview</p>
-          </div>
-          <div class="builder__showcase-card">
-            <div class="builder__showcase-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </div>
-            <h3>Download</h3>
-            <p>Export your data as JSON</p>
-          </div>
-          <div class="builder__showcase-card">
-            <div class="builder__showcase-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </div>
-            <h3>Build</h3>
-            <p>Generate a ready-to-deploy website</p>
+        <div class="cta-banner__inner">
+          <h2>Ready to Showcase Your Teaching Success?</h2>
+          <p>Join hundreds of educators building clean, professional, and accessible portfolio websites today.</p>
+          <div class="cta-banner__actions">
+            <a href="cms/cms.html" class="btn btn--white btn--xl">
+              <span>Launch CMS Editor Now</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
           </div>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- Footer -->
   <footer class="footer">
     <div class="container footer__inner">
-      <p class="footer__copy">Teacher Portfolio Builder</p>
+      <div class="footer__brand">
+        <a href="#" class="home-logo">
+          <span class="home-logo__icon">🎓</span>
+          <span class="home-logo__text">Edu<span class="gradient-text">Portfolio</span></span>
+        </a>
+        <p>Empowering educators with beautiful static portfolio websites.</p>
+      </div>
+      <div class="footer__copy">
+        &copy; 2026 EduPortfolio Builder. Open Source &amp; Free for Teachers.
+      </div>
     </div>
   </footer>
+
+  <!-- Interactive JavaScript for Theme Previewer -->
+  <script>
+    const themeData = {
+      modern: {
+        name: 'Modern Theme',
+        desc: 'Clean indigo & emerald scheme with Plus Jakarta typography',
+        primary: '#4f46e5',
+        accent: '#059669',
+        bg: '#ffffff'
+      },
+      warm: {
+        name: 'Warm Theme',
+        desc: 'Cozy amber & deep gold tones with Playfair Display serif fonts',
+        primary: '#d97706',
+        accent: '#b45309',
+        bg: '#fffbeb'
+      },
+      academic: {
+        name: 'Academic Theme',
+        desc: 'Classic deep navy blue for formal educational institutions',
+        primary: '#1e3a8a',
+        accent: '#1e40af',
+        bg: '#f8fafc'
+      },
+      creative: {
+        name: 'Creative Theme',
+        desc: 'Vibrant pink & purple palette for expressive arts & design teachers',
+        primary: '#db2777',
+        accent: '#c026d3',
+        bg: '#fdf2f8'
+      },
+      minimal: {
+        name: 'Minimal Theme',
+        desc: 'Sleek black & neutral grey focus for high clarity',
+        primary: '#0f172a',
+        accent: '#334155',
+        bg: '#ffffff'
+      }
+    };
+
+    const tabs = document.querySelectorAll('.theme-tab');
+    const badge = document.getElementById('previewThemeBadge');
+    const desc = document.getElementById('previewThemeDesc');
+    const windowEl = document.getElementById('previewWindow');
+    const tag = document.getElementById('demoTag');
+    const highlight = document.getElementById('demoHighlight');
+    const btnPrimary = document.getElementById('demoBtnPrimary');
+    const btnOutline = document.getElementById('demoBtnOutline');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const key = tab.dataset.theme;
+        const theme = themeData[key];
+
+        badge.textContent = theme.name;
+        desc.textContent = theme.desc;
+
+        windowEl.style.backgroundColor = theme.bg;
+        tag.style.color = theme.primary;
+        highlight.style.color = theme.primary;
+
+        btnPrimary.style.backgroundColor = theme.primary;
+        btnPrimary.style.borderColor = theme.primary;
+
+        btnOutline.style.color = theme.primary;
+        btnOutline.style.borderColor = theme.primary;
+      });
+    });
+  </script>
 </body>
 </html>
