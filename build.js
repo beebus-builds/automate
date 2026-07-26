@@ -1,0 +1,111 @@
+var fs = require('fs');
+var path = require('path');
+
+var content = JSON.parse(fs.readFileSync(path.join(__dirname, 'content.json'), 'utf8'));
+var tpl = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+var cssTpl = fs.readFileSync(path.join(__dirname, 'css', 'style.css'), 'utf8');
+var jsSrc = fs.readFileSync(path.join(__dirname, 'js', 'script.js'), 'utf8');
+
+function rgba(hex, alpha) {
+  var r = parseInt(hex.slice(1, 3), 16);
+  var g = parseInt(hex.slice(3, 5), 16);
+  var b = parseInt(hex.slice(5, 7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+function darken(hex) {
+  var r = Math.max(0, parseInt(hex.slice(1, 3), 16) - 40);
+  var g = Math.max(0, parseInt(hex.slice(3, 5), 16) - 40);
+  var b = Math.max(0, parseInt(hex.slice(5, 7), 16) - 40);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+var s = content.site;
+var h = content.hero;
+var a = content.about;
+var p = content.philosophy;
+var c = content.contact;
+var year = new Date().getFullYear();
+
+var html = tpl;
+html = html.replace(/{{SITE_TITLE}}/g, escHtml(s.title));
+html = html.replace(/{{HERO_TAGLINE}}/g, escHtml(h.tagline));
+html = html.replace(/{{HERO_TITLE}}/g, escHtml(h.title));
+html = html.replace(/{{HERO_HIGHLIGHT}}/g, escHtml(h.highlight));
+html = html.replace(/{{HERO_DESC}}/g, escHtml(h.description));
+html = html.replace(/{{INITIALS}}/g, escHtml(h.initials));
+html = html.replace(/{{ABOUT_LEAD}}/g, escHtml(a.lead));
+
+var aboutParagraphs = a.paragraphs || [];
+html = html.replace('{{ABOUT_P1}}', aboutParagraphs[0] ? '<p>' + escHtml(aboutParagraphs[0]) + '</p>' : '');
+html = html.replace('{{ABOUT_P2}}', aboutParagraphs[1] ? '<p>' + escHtml(aboutParagraphs[1]) + '</p>' : '');
+
+var statsHtml = '';
+(a.stats || []).forEach(function (st) {
+  statsHtml += '<div class="stat"><span class="stat__number">' + escHtml(st.number) + escHtml(st.suffix) + '</span><span class="stat__label">' + escHtml(st.label) + '</span></div>';
+});
+html = html.replace('{{STATS_HTML}}', statsHtml);
+
+var coursesHtml = '';
+(content.courses || []).forEach(function (co) {
+  coursesHtml += '<div class="course-card">' +
+    '<div class="course-card__icon">' + escHtml(co.icon) + '</div>' +
+    '<h3 class="course-card__title">' + escHtml(co.title) + '</h3>' +
+    '<p class="course-card__desc">' + escHtml(co.description) + '</p>' +
+    '<span class="course-card__level">' + escHtml(co.level) + '</span>' +
+    '</div>';
+});
+html = html.replace('{{COURSES_HTML}}', coursesHtml);
+
+html = html.replace(/{{PHILOSOPHY_QUOTE}}/g, escHtml(p.quote));
+html = html.replace(/{{PHILOSOPHY_CITE}}/g, escHtml(p.attribution));
+
+var pointsHtml = '';
+(p.points || []).forEach(function (pt) {
+  pointsHtml += '<div class="philosophy__point"><h3>' + escHtml(pt.title) + '</h3><p>' + escHtml(pt.description) + '</p></div>';
+});
+html = html.replace('{{PHILOSOPHY_POINTS_HTML}}', pointsHtml);
+
+var achievementsHtml = '';
+(content.achievements || []).forEach(function (ach) {
+  achievementsHtml += '<div class="achievement-card">' +
+    '<span class="achievement-card__year">' + escHtml(ach.year) + '</span>' +
+    '<h3 class="achievement-card__title">' + escHtml(ach.title) + '</h3>' +
+    '<p>' + escHtml(ach.description) + '</p>' +
+    '</div>';
+});
+html = html.replace('{{ACHIEVEMENTS_HTML}}', achievementsHtml);
+
+html = html.replace(/{{CONTACT_EMAIL}}/g, escHtml(c.email));
+html = html.replace(/{{CONTACT_PHONE}}/g, escHtml(c.phone));
+html = html.replace(/{{CONTACT_LOCATION}}/g, escHtml(c.location));
+html = html.replace(/{{YEAR}}/g, year);
+
+var css = cssTpl;
+css = css.replace(/{{PRIMARY_COLOR}}/g, s.primaryColor || '#4f46e5');
+css = css.replace(/{{PRIMARY_DARK}}/g, darken(s.primaryColor || '#4f46e5'));
+css = css.replace(/{{PRIMARY_LIGHT}}/g, rgba(s.primaryColor || '#4f46e5', 0.12));
+css = css.replace(/{{ACCENT_COLOR}}/g, s.accentColor || '#059669');
+css = css.replace(/{{ACCENT_LIGHT}}/g, rgba(s.accentColor || '#059669', 0.12));
+
+var distDir = path.join(__dirname, 'dist');
+var cssDir = path.join(distDir, 'css');
+var jsDir = path.join(distDir, 'js');
+
+if (fs.existsSync(distDir)) {
+  fs.rmSync(distDir, { recursive: true });
+}
+fs.mkdirSync(distDir, { recursive: true });
+fs.mkdirSync(cssDir, { recursive: true });
+fs.mkdirSync(jsDir, { recursive: true });
+
+fs.writeFileSync(path.join(distDir, 'index.html'), html);
+fs.writeFileSync(path.join(cssDir, 'style.css'), css);
+fs.writeFileSync(path.join(jsDir, 'script.js'), jsSrc);
+
+console.log('Website built successfully in dist/');

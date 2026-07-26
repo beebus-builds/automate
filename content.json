@@ -1,0 +1,73 @@
+{
+  "site": {
+    "title": "Teacher Portfolio",
+    "primaryColor": "#4f46e5",
+    "accentColor": "#059669"
+  },
+  "hero": {
+    "tagline": "Welcome to My Teaching Portfolio",
+    "title": "Empowering Every Learner",
+    "highlight": "Every Learner",
+    "description": "Passionate educator dedicated to creating engaging, inclusive, and impactful learning experiences that inspire students to reach their full potential.",
+    "initials": "TP"
+  },
+  "about": {
+    "lead": "Hello! I am a dedicated educator with over 10 years of experience shaping young minds and fostering a love for learning.",
+    "paragraphs": [
+      "My teaching journey has taken me through multiple subjects and grade levels, where I have developed innovative approaches to engage students and make complex concepts accessible and enjoyable.",
+      "I believe that every student is unique and has the potential to excel when given the right guidance, support, and encouragement."
+    ],
+    "stats": [
+      { "number": "10", "suffix": "+", "label": "Years Experience" },
+      { "number": "500", "suffix": "+", "label": "Students Mentored" },
+      { "number": "3", "suffix": "", "label": "Subject Specializations" }
+    ]
+  },
+  "courses": [
+    {
+      "icon": "\uD83D\uDCD6",
+      "title": "Mathematics",
+      "description": "From algebra to calculus, building strong foundations in mathematical thinking and problem-solving.",
+      "level": "Grades 9-12"
+    },
+    {
+      "icon": "\uD83D\uDD2C",
+      "title": "Science",
+      "description": "Engaging students in hands-on experiments and inquiry-based learning to explore the natural world.",
+      "level": "Grades 7-10"
+    },
+    {
+      "icon": "\u26A1",
+      "title": "Physics",
+      "description": "Making physics intuitive through real-world applications and interactive demonstrations.",
+      "level": "Grades 11-12"
+    },
+    {
+      "icon": "\uD83D\uDCBB",
+      "title": "Computer Science",
+      "description": "Introduction to programming, algorithms, and computational thinking for the digital age.",
+      "level": "Grades 9-12"
+    }
+  ],
+  "philosophy": {
+    "quote": "Education is not the filling of a pail, but the lighting of a fire.",
+    "attribution": "\u2014 William Butler Yeats",
+    "points": [
+      { "title": "Student-Centered Learning", "description": "Every student is unique and learns differently. My approach focuses on scaffolding instruction to meet individual needs while fostering independence and critical thinking." },
+      { "title": "Inclusive Classroom", "description": "Creating a safe and welcoming environment where all students feel valued, respected, and encouraged to participate and express their ideas." },
+      { "title": "Real-World Connections", "description": "Linking curriculum to real-life applications and current events helps students understand the relevance and importance of what they are learning." },
+      { "title": "Continuous Growth", "description": "Both students and teachers should embrace lifelong learning. I regularly seek feedback and adapt my methods to improve." }
+    ]
+  },
+  "achievements": [
+    { "year": "2023", "title": "Distinguished Teacher Award", "description": "Recognized for outstanding contributions to student achievement and innovative teaching practices." },
+    { "year": "2022", "title": "Curriculum Development Lead", "description": "Led the development of a new interdisciplinary STEM curriculum adopted across 12 schools." },
+    { "year": "2021", "title": "Student Mentorship Excellence", "description": "Awarded for exceptional dedication to mentoring underprivileged students in academic programs." },
+    { "year": "2019", "title": "National Conference Speaker", "description": "Shared research on adaptive learning strategies at the National Education Technology Conference." }
+  ],
+  "contact": {
+    "email": "teacher@example.com",
+    "phone": "+1 (555) 123-4567",
+    "location": "City, State / Country"
+  }
+}
