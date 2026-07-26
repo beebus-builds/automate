@@ -1,93 +1,98 @@
-import Database from 'better-sqlite3';
+import { Pool } from 'pg';
 import path from 'path';
 import fs from 'fs';
 
-const DB_PATH = path.join(process.cwd(), 'data.db');
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-let db: Database.Database | null = null;
-
-export function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    initTables();
-  }
-  return db;
-}
-
-function initTables() {
-  const d = getDb();
-  d.exec(`
+async function initTables() {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS content (
       id INTEGER PRIMARY KEY CHECK (id = 1),
-      data TEXT NOT NULL
+      data JSONB NOT NULL
     );
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS media (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       filename TEXT NOT NULL,
       original_name TEXT NOT NULL,
       size INTEGER NOT NULL,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      data TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS history (
+      id SERIAL PRIMARY KEY,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
   }
 }
 
-export function getContent(): object {
-  const row = getDb().prepare('SELECT data FROM content WHERE id = 1').get() as { data: string } | undefined;
-  return row ? JSON.parse(row.data) : {};
+initTables().catch(err => {
+  if (!err.message?.includes('already exists')) {
+    console.error('Failed to init DB tables:', err.message);
+  }
+});
+
+export async function getContent(): Promise<any> {
+  const { rows } = await pool.query('SELECT data FROM content WHERE id = 1');
+  return rows.length > 0 ? rows[0].data : {};
 }
 
-export function saveContent(data: object): void {
-  getDb().prepare('INSERT OR REPLACE INTO content (id, data) VALUES (1, ?)').run(JSON.stringify(data));
+export async function saveContent(data: any): Promise<void> {
+  await pool.query(
+    'INSERT INTO content (id, data) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET data = $1',
+    [JSON.stringify(data)]
+  );
 }
 
-export function getMediaList(): object[] {
-  return getDb().prepare('SELECT * FROM media ORDER BY created_at DESC').all() as object[];
+export async function getMediaList(): Promise<any[]> {
+  const { rows } = await pool.query('SELECT * FROM media ORDER BY created_at DESC');
+  return rows;
 }
 
-export function addMedia(filename: string, originalName: string, size: number): object {
-  const info = getDb().prepare('INSERT INTO media (filename, original_name, size) VALUES (?, ?, ?)').run(filename, originalName, size);
-  return getDb().prepare('SELECT * FROM media WHERE id = ?').get(info.lastInsertRowid) as object;
+export async function addMedia(filename: string, originalName: string, size: number): Promise<any> {
+  const { rows } = await pool.query(
+    'INSERT INTO media (filename, original_name, size) VALUES ($1, $2, $3) RETURNING *',
+    [filename, originalName, size]
+  );
+  return rows[0];
 }
 
-export function deleteMedia(id: number): boolean {
-  const row = getDb().prepare('SELECT filename FROM media WHERE id = ?').get(id) as { filename: string } | undefined;
-  if (!row) return false;
-  const filePath = path.join(UPLOADS_DIR, row.filename);
+export async function deleteMedia(id: number): Promise<boolean> {
+  const { rows } = await pool.query('SELECT filename FROM media WHERE id = $1', [id]);
+  if (rows.length === 0) return false;
+  const filePath = path.join(process.cwd(), 'public', 'uploads', rows[0].filename);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  getDb().prepare('DELETE FROM media WHERE id = ?').run(id);
+  await pool.query('DELETE FROM media WHERE id = $1', [id]);
   return true;
 }
 
-export function pushHistory(data: object): void {
-  const d = getDb();
-  d.prepare('DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY id DESC LIMIT 19)').run();
-  d.prepare('INSERT INTO history (data) VALUES (?)').run(JSON.stringify(data));
+export async function pushHistory(data: any): Promise<void> {
+  await pool.query(
+    'DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY id DESC LIMIT 19)'
+  );
+  await pool.query('INSERT INTO history (data) VALUES ($1)', [JSON.stringify(data)]);
 }
 
-export function getHistory(): string[] {
-  const rows = getDb().prepare('SELECT data FROM history ORDER BY id ASC').all() as { data: string }[];
+export async function getHistory(): Promise<string[]> {
+  const { rows } = await pool.query('SELECT data FROM history ORDER BY id ASC');
   return rows.map(r => r.data);
 }
 
-export function popHistory(): object | null {
-  const d = getDb();
-  const rows = d.prepare('SELECT id, data FROM history ORDER BY id DESC LIMIT 2').all() as { id: number; data: string }[];
-  if (rows.length < 2) return null;
-  d.prepare('DELETE FROM history WHERE id = ?').run(rows[0].id);
-  return JSON.parse(rows[1].data);
+export async function popHistory(): Promise<any | null> {
+  const { rows: recent } = await pool.query('SELECT id, data FROM history ORDER BY id DESC LIMIT 2');
+  if (recent.length < 2) return null;
+  await pool.query('DELETE FROM history WHERE id = $1', [recent[0].id]);
+  return recent[1].data;
 }
 
-export function runBuild(data: object): string {
+export async function runBuild(data: any): Promise<string> {
   const fs = require('fs');
   const path = require('path');
   const distDir = path.join(process.cwd(), 'public', '_site');
@@ -102,7 +107,7 @@ export function runBuild(data: object): string {
   const themes = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'themes', 'index.json'), 'utf8'));
   const fonts = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'themes', 'fonts.json'), 'utf8'));
 
-  const c = data as any;
+  const c = data;
   const s = c.site || {};
   const h = c.hero || {};
   const a = c.about || {};

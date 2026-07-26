@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server';
 import { getHistory, pushHistory, popHistory } from '@/lib/db';
 
 export async function GET() {
-  return NextResponse.json(getHistory());
+  return NextResponse.json(await getHistory());
 }
 
 export async function POST(request: Request) {
   const data = await request.json();
-  pushHistory(data);
+  await pushHistory(data);
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE() {
-  const prev = popHistory();
+  const prev = await popHistory();
   return NextResponse.json(prev || {});
 }

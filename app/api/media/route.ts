@@ -4,7 +4,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
 export async function GET() {
-  const list = getMediaList();
+  const list = await getMediaList();
   return NextResponse.json(list.map((m: any) => ({
     id: m.id,
     filename: m.filename,
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(path.join(uploadDir, filename), buffer);
 
-  const record = addMedia(filename, file.name, file.size) as any;
+  const record = await addMedia(filename, file.name, file.size) as any;
   return NextResponse.json({
     id: record.id,
     filename,

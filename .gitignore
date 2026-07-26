@@ -1,8 +1,8 @@
 node_modules/
 .next/
 *.db
+.env.local
 public/uploads/*
-!_site/
 public/_site/.gitkeep
 dist/
 backup-cms/
