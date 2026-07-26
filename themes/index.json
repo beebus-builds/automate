@@ -1,0 +1,7 @@
+{
+  "modern": { "primary": "#4f46e5", "accent": "#059669", "font": "Inter, sans-serif" },
+  "warm": { "primary": "#d97706", "accent": "#b45309", "font": "Playfair Display, serif" },
+  "academic": { "primary": "#1e3a8a", "accent": "#1e40af", "font": "Georgia, serif" },
+  "creative": { "primary": "#db2777", "accent": "#c026d3", "font": "Inter, sans-serif" },
+  "minimal": { "primary": "#000000", "accent": "#333333", "font": "Helvetica, sans-serif" }
+}

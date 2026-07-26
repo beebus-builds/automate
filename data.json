@@ -1,4 +1,9 @@
 {
+  "theme": {
+    "name": "modern",
+    "layout": "wide",
+    "heroStyle": "centered"
+  },
   "site": {
     "title": "Teacher Portfolio",
     "primaryColor": "#4f46e5",

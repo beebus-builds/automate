@@ -10,11 +10,12 @@
     { id: 'philosophy', label: 'Philosophy', icon: '\u270D' },
     { id: 'achievements', label: 'Achievements', icon: '\u2B50' },
     { id: 'contact', label: 'Contact', icon: '\uD83D\uDCE7' },
-    { id: 'theme', label: 'Theme', icon: '\uD83C\uDFFA' }
+    { id: 'theme', label: 'Theme', icon: '\uD83C\uDFA8' }
   ];
 
   var defaultData = {
-    site: { title: 'Teacher Portfolio', primaryColor: '#4f46e5', accentColor: '#059669' },
+    theme: { name: 'modern', layout: 'wide', heroStyle: 'centered' },
+    site: { title: 'Teacher Portfolio' },
     hero: { tagline: 'Welcome to My Teaching Portfolio', title: 'Empowering Every Learner', highlight: 'Every Learner', description: 'Passionate educator dedicated to creating engaging, inclusive, and impactful learning experiences that inspire students to reach their full potential.', initials: 'TP' },
     about: { lead: 'Hello! I am a dedicated educator with over 10 years of experience shaping young minds and fostering a love for learning.', paragraphs: ['My teaching journey has taken me through multiple subjects and grade levels, where I have developed innovative approaches to engage students and make complex concepts accessible and enjoyable.', 'I believe that every student is unique and has the potential to excel when given the right guidance, support, and encouragement.'], stats: [{ number: '10', suffix: '+', label: 'Years Experience' }, { number: '500', suffix: '+', label: 'Students Mentored' }, { number: '3', suffix: '', label: 'Subject Specializations' }] },
     courses: [{ icon: '\uD83D\uDCD6', title: 'Mathematics', description: 'From algebra to calculus, building strong foundations in mathematical thinking.', level: 'Grades 9-12' }, { icon: '\uD83D\uDD2C', title: 'Science', description: 'Engaging students in hands-on experiments and inquiry-based learning.', level: 'Grades 7-10' }, { icon: '\u26A1', title: 'Physics', description: 'Making physics intuitive through real-world applications.', level: 'Grades 11-12' }, { icon: '\uD83D\uDCBB', title: 'Computer Science', description: 'Introduction to programming, algorithms, and computational thinking.', level: 'Grades 9-12' }],
@@ -153,6 +154,15 @@
     });
     content.querySelectorAll('.btn-remove').forEach(function (btn) {
       btn.addEventListener('click', function () { onRemoveClick(btn); });
+    });
+    content.querySelectorAll('.theme-card').forEach(function (card) {
+      card.addEventListener('click', function () { onThemeSelect(card); });
+    });
+    content.querySelectorAll('input[name="layout"]').forEach(function (radio) {
+      radio.addEventListener('change', function () { onLayoutChange(radio); });
+    });
+    content.querySelectorAll('input[name="heroStyle"]').forEach(function (radio) {
+      radio.addEventListener('change', function () { onHeroStyleChange(radio); });
     });
   }
 
@@ -375,13 +385,47 @@
   }
 
   function renderTheme() {
+    var themes = [
+      { id: 'modern', label: 'Modern', primary: '#4f46e5', accent: '#059669', desc: 'Clean purple & green' },
+      { id: 'warm', label: 'Warm', primary: '#d97706', accent: '#b45309', desc: 'Cozy amber tones' },
+      { id: 'academic', label: 'Academic', primary: '#1e3a8a', accent: '#1e40af', desc: 'Classic navy' },
+      { id: 'creative', label: 'Creative', primary: '#db2777', accent: '#c026d3', desc: 'Bold pink & purple' },
+      { id: 'minimal', label: 'Minimal', primary: '#000000', accent: '#333333', desc: 'Clean black & white' }
+    ];
+
+    var current = data.theme.name || 'modern';
+    var themeCards = themes.map(function (t) {
+      var active = t.id === current ? ' style="border-color:' + t.primary + ';background:' + t.primary + '12"' : '';
+      return '<div class="theme-card' + (t.id === current ? ' active' : '') + '" data-theme="' + t.id + '" data-primary="' + t.primary + '" data-accent="' + t.accent + '"' + active + '>' +
+        '<div class="theme-card__swatch"><div style="background:' + t.primary + ';width:24px;height:24px;border-radius:50%;display:inline-block"></div><div style="background:' + t.accent + ';width:24px;height:24px;border-radius:50%;display:inline-block"></div></div>' +
+        '<div class="theme-card__info"><strong>' + t.label + '</strong><span style="font-size:0.75rem;color:#64748b">' + t.desc + '</span></div>' +
+        '</div>';
+    }).join('');
+
+    var layouts = ['wide', 'boxed', 'full'];
+    var layoutRadios = layouts.map(function (l) {
+      var checked = (data.theme.layout || 'wide') === l ? ' checked' : '';
+      return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="layout" value="' + l + '"' + checked + '>' + l.charAt(0).toUpperCase() + l.slice(1) + '</label>';
+    }).join('');
+
+    var heroStyles = ['centered', 'split', 'left'];
+    var heroRadios = heroStyles.map(function (s) {
+      var checked = (data.theme.heroStyle || 'centered') === s ? ' checked' : '';
+      return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="heroStyle" value="' + s + '"' + checked + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</label>';
+    }).join('');
+
     return '<div class="cms-panel">' +
       '<div class="cms-section">' +
-        '<div class="cms-section__title">Theme Colors</div>' +
-        '<div class="form-row">' +
-          '<div class="form-group"><label>Primary Color</label><div style="display:flex;align-items:center;gap:10px">' + inputHTML('site.primaryColor', data.site.primaryColor, '#4f46e5') + '<input type="color" data-path="site.primaryColor" value="' + escAttr(data.site.primaryColor) + '" style="width:40px;height:32px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer"></div></div>' +
-          '<div class="form-group"><label>Accent Color</label><div style="display:flex;align-items:center;gap:10px">' + inputHTML('site.accentColor', data.site.accentColor, '#059669') + '<input type="color" data-path="site.accentColor" value="' + escAttr(data.site.accentColor) + '" style="width:40px;height:32px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer"></div></div>' +
-        '</div>' +
+        '<div class="cms-section__title">Choose Theme</div>' +
+        '<div class="theme-selector" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">' + themeCards + '</div>' +
+      '</div>' +
+      '<div class="cms-section">' +
+        '<div class="cms-section__title">Layout</div>' +
+        '<div class="form-row" style="display:flex;gap:20px;margin-bottom:24px">' + layoutRadios + '</div>' +
+      '</div>' +
+      '<div class="cms-section">' +
+        '<div class="cms-section__title">Hero Style</div>' +
+        '<div class="form-row" style="display:flex;gap:20px;margin-bottom:24px">' + heroRadios + '</div>' +
       '</div>' +
     '</div>';
   }
@@ -395,9 +439,18 @@
     frame.src = url;
   }
 
+  var THEMES = {
+    modern: { primary: '#4f46e5', accent: '#059669' },
+    warm: { primary: '#d97706', accent: '#b45309' },
+    academic: { primary: '#1e3a8a', accent: '#1e40af' },
+    creative: { primary: '#db2777', accent: '#c026d3' },
+    minimal: { primary: '#000000', accent: '#333333' }
+  };
+
   function generatePreviewHTML() {
-    var primary = data.site.primaryColor || '#4f46e5';
-    var accent = data.site.accentColor || '#059669';
+    var theme = THEMES[data.theme.name] || THEMES.modern;
+    var primary = theme.primary;
+    var accent = theme.accent;
 
     function rgba(hex, a) {
       var r = parseInt(hex.slice(1, 3), 16);
@@ -486,6 +539,35 @@
     var g = Math.max(0, parseInt(hex.slice(3, 5), 16) - 40);
     var b = Math.max(0, parseInt(hex.slice(5, 7), 16) - 40);
     return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+
+  function onThemeSelect(card) {
+    var themeId = card.dataset.theme;
+    var primary = card.dataset.primary;
+    var accent = card.dataset.accent;
+    if (!data.theme) data.theme = {};
+    data.theme.name = themeId;
+    data.site.primaryColor = primary;
+    data.site.accentColor = accent;
+    saveData(data);
+    render();
+    updatePreview();
+  }
+
+  function onLayoutChange(radio) {
+    if (!data.theme) data.theme = {};
+    data.theme.layout = radio.value;
+    saveData(data);
+    render();
+    updatePreview();
+  }
+
+  function onHeroStyleChange(radio) {
+    if (!data.theme) data.theme = {};
+    data.theme.heroStyle = radio.value;
+    saveData(data);
+    render();
+    updatePreview();
   }
 
   function togglePreview() {

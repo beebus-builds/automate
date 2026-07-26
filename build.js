@@ -94,12 +94,16 @@ html = html.replace(/{{CONTACT_PHONE}}/g, escHtml(c.phone));
 html = html.replace(/{{CONTACT_LOCATION}}/g, escHtml(c.location));
 html = html.replace(/{{YEAR}}/g, year);
 
+var themes = JSON.parse(fs.readFileSync(path.join(__dirname, 'themes', 'index.json'), 'utf8'));
+var selectedTheme = themes[content.theme.name || 'modern'];
 var css = cssTpl;
-css = css.replace(/{{PRIMARY_COLOR}}/g, s.primaryColor || '#4f46e5');
-css = css.replace(/{{PRIMARY_DARK}}/g, darken(s.primaryColor || '#4f46e5'));
-css = css.replace(/{{PRIMARY_LIGHT}}/g, rgba(s.primaryColor || '#4f46e5', 0.12));
-css = css.replace(/{{ACCENT_COLOR}}/g, s.accentColor || '#059669');
-css = css.replace(/{{ACCENT_LIGHT}}/g, rgba(s.accentColor || '#059669', 0.12));
+css = css.replace(/{{PRIMARY_COLOR}}/g, selectedTheme.primary);
+css = css.replace(/{{PRIMARY_DARK}}/g, darken(selectedTheme.primary));
+css = css.replace(/{{PRIMARY_LIGHT}}/g, rgba(selectedTheme.primary, 0.12));
+css = css.replace(/{{ACCENT_COLOR}}/g, selectedTheme.accent);
+css = css.replace(/{{ACCENT_LIGHT}}/g, rgba(selectedTheme.accent, 0.12));
+
+html = html.replace('class="layout-wide"', 'class="layout-' + (content.theme.layout || 'wide') + '"');
 
 var distDir = path.join(__dirname, 'dist');
 var cssDir = path.join(distDir, 'css');
