@@ -52,6 +52,7 @@ export default function ChatPage() {
   const [built, setBuilt] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [deployStatus, setDeployStatus] = useState('');
+  const [deployUrl, setDeployUrl] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -179,7 +180,7 @@ export default function ChatPage() {
       await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       const buildRes = await fetch('/api/build', { method: 'POST' });
       const buildJson = await buildRes.json();
-      setDownloadUrl('/api/download?_=' + Date.now());
+      setDownloadUrl(`/api/download?name=${encodeURIComponent(name)}&_=${Date.now()}`);
       setBuilt(true);
       addBot(`✅ **Your portfolio is ready!** Click below to download or deploy it.`);
     } catch (e: any) {
@@ -192,11 +193,12 @@ export default function ChatPage() {
   const handleDeploy = async () => {
     setDeployStatus('deploying');
     try {
-      const r = await fetch('/api/deploy', { method: 'POST' });
+      const r = await fetch(`/api/deploy?name=${encodeURIComponent(name)}`, { method: 'POST' });
       const j = await r.json();
       if (j.url) {
         setDeployStatus('done');
-        addBot(`🚀 **Live!** Your site is deployed at:\n${j.url}`);
+        setDeployUrl(j.url);
+        addBot(`🚀 **${name}'s site is live!**\nYour unique URL:\n${j.url}`);
         window.open(j.url, '_blank');
       } else {
         setDeployStatus('error');
@@ -314,12 +316,18 @@ export default function ChatPage() {
           {built && (
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: 20, marginTop: 8, textAlign: 'center' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🎉</div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px' }}>Your Portfolio is Ready!</h3>
-              <p style={{ fontSize: '.82rem', color: '#64748b', marginBottom: 16 }}>Download as ZIP or deploy live.</p>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px' }}>{name}'s Portfolio is Ready!</h3>
+              {deployUrl ? (
+                <p style={{ fontSize: '.82rem', color: '#059669', marginBottom: 8 }}>
+                  ✅ Live at: <a href={deployUrl} target="_blank" style={{ color: '#059669', fontWeight: 600 }}>{deployUrl}</a>
+                </p>
+              ) : (
+                <p style={{ fontSize: '.82rem', color: '#64748b', marginBottom: 16 }}>Download as ZIP or deploy live.</p>
+              )}
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <a href={downloadUrl} download
                   style={{ padding: '11px 24px', background: '#6366f1', color: '#fff', borderRadius: 10, fontWeight: 700, textDecoration: 'none', fontSize: '.85rem' }}>
-                📦 Download ZIP
+                📦 {name.split(' ')[0]}'s Portfolio.zip
                 </a>
                 <a href="/_site" target="_blank"
                   style={{ padding: '11px 24px', background: '#f1f5f9', color: '#475569', borderRadius: 10, fontWeight: 600, textDecoration: 'none', fontSize: '.85rem' }}>
@@ -334,7 +342,7 @@ export default function ChatPage() {
               <div style={{ marginTop: 12 }}>
                 <a href="/cms" style={{ fontSize: '.78rem', color: '#6366f1', textDecoration: 'none' }}>Fine-tune in CMS →</a>
                 <span style={{ color: '#cbd5e1', margin: '0 8px' }}>·</span>
-                <button onClick={() => { setBuilt(false); setStep('name'); setMsgs([]); }} style={{ fontSize: '.78rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Start Over</button>
+                <button onClick={() => { setBuilt(false); setDeployUrl(''); setStep('name'); setMsgs([]); }} style={{ fontSize: '.78rem', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Start Over</button>
               </div>
             </div>
           )}

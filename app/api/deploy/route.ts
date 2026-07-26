@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getContent, runBuild } from '@/lib/db';
 const archiver = require('archiver');
 import path from 'path';
@@ -19,7 +19,9 @@ async function createTarGz(): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const teacherName = request.nextUrl.searchParams.get('name') || 'My Portfolio';
+  const safeName = teacherName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'portfolio';
   const data = await getContent();
 
   // Build if not already built
@@ -33,7 +35,7 @@ export async function POST() {
   if (token) {
     try {
       const tarball = await createTarGz();
-      const res = await fetch('https://api.vercel.com/v13/deployments', {
+      const res = await fetch(`https://api.vercel.com/v13/deployments?name=${safeName}`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
