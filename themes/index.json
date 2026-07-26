@@ -1,7 +1,10 @@
 {
-  "modern": { "primary": "#4f46e5", "accent": "#059669", "font": "Inter, sans-serif" },
-  "warm": { "primary": "#d97706", "accent": "#b45309", "font": "Playfair Display, serif" },
-  "academic": { "primary": "#1e3a8a", "accent": "#1e40af", "font": "Georgia, serif" },
-  "creative": { "primary": "#db2777", "accent": "#c026d3", "font": "Inter, sans-serif" },
-  "minimal": { "primary": "#000000", "accent": "#333333", "font": "Helvetica, sans-serif" }
+  "modern": { "primary": "#4f46e5", "accent": "#059669", "font": "Plus Jakarta Sans, sans-serif", "desc": "Clean indigo & emerald scheme" },
+  "warm": { "primary": "#d97706", "accent": "#b45309", "font": "Playfair Display, serif", "desc": "Cozy amber & deep gold tones" },
+  "academic": { "primary": "#1e3a8a", "accent": "#1e40af", "font": "Georgia, serif", "desc": "Classic deep navy for universities" },
+  "creative": { "primary": "#db2777", "accent": "#c026d3", "font": "Inter, sans-serif", "desc": "Bold pink & magenta expressive style" },
+  "minimal": { "primary": "#0f172a", "accent": "#334155", "font": "Helvetica, sans-serif", "desc": "Sleek charcoal & dark slate clarity" },
+  "emerald": { "primary": "#047857", "accent": "#059669", "font": "Plus Jakarta Sans, sans-serif", "desc": "Forest green for science & biology" },
+  "sunset": { "primary": "#ea580c", "accent": "#7c3aed", "font": "Inter, sans-serif", "desc": "Vibrant coral & violet for early ed" },
+  "cyber": { "primary": "#0284c7", "accent": "#0891b2", "font": "Plus Jakarta Sans, sans-serif", "desc": "Deep cyan & tech slate for STEM" }
 }

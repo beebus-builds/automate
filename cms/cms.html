@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CMS - Teacher Portfolio</title>
+  <title>CMS - Teacher Portfolio Builder</title>
   <link rel="stylesheet" href="cms.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="cms">
@@ -17,17 +17,23 @@
         <p>Teacher Content Editor</p>
       </div>
       <nav class="cms__sidebar-nav" id="sidebarNav"></nav>
-      <div class="cms__sidebar-footer">v1.0 &mdash; Teacher Portfolio Builder</div>
+      <div class="cms__sidebar-footer">
+        <a href="../index.html" style="color: #94a3b8; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+          <span>&larr; Exit to Homepage</span>
+        </a>
+      </div>
     </aside>
 
     <div class="cms__main">
       <div class="cms__topbar">
-        <span class="cms__topbar-title" id="topbarTitle">General</span>
-        <div class="cms__topbar-actions">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span class="cms__topbar-title" id="topbarTitle">General</span>
           <span class="cms-status cms-status--saved" id="saveStatus">Saved</span>
-          <button class="btn btn--outline btn--sm" id="btnLoad">Load</button>
-          <button class="btn btn--outline btn--sm" id="btnDownload">Download JSON</button>
-          <button class="btn btn--primary btn--sm" id="btnBuild">Build Website</button>
+        </div>
+        <div class="cms__topbar-actions">
+          <button class="btn btn--outline btn--sm" id="btnLoad" title="Upload an existing data.json">Load JSON</button>
+          <button class="btn btn--outline btn--sm" id="btnDownload" title="Download your data file">Download JSON</button>
+          <button class="btn btn--primary btn--sm" id="btnBuild" title="Export and prepare website">Build Site</button>
         </div>
       </div>
 
@@ -36,11 +42,14 @@
 
       <aside class="cms-preview" id="cmsPreview">
         <div class="cms-preview__header">
-          <span>Live Preview</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+            <strong>Real-Time Live Preview</strong>
+          </span>
           <button class="btn btn--sm btn--outline" id="btnTogglePreview">Close</button>
         </div>
         <div class="cms-preview__body">
-          <iframe id="previewFrame" sandbox="allow-same-origin"></iframe>
+          <iframe id="previewFrame" style="width: 100%; height: 100%; border: none;"></iframe>
         </div>
       </aside>
     </div>
