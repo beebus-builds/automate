@@ -380,6 +380,7 @@
   }
 
   function renderSEO() {
+    if (!data.seo) data.seo = { metaTitle: '', metaDesc: '', ogImage: '', googleAnalytics: '' };
     return '<div class="cms-panel"><div class="cms-panel__header"><h2>SEO &amp; Settings</h2><p>Optimize your site for search engines and configure advanced options.</p></div>' +
       '<div class="cms-section"><div class="cms-section__title">Meta Tags</div>' +
       '<div class="form-group"><label>Meta Title <span style="color:#64748b;font-weight:400">(overrides site title in search results)</span></label>' + inp('seo.metaTitle', data.seo.metaTitle || '', 'Teacher Name — Professional Portfolio') + '</div>' +
@@ -621,9 +622,22 @@
     if (frame) frame.className = 'preview-' + device;
   }
 
+  function mergeDeep(a, b) {
+    var result = JSON.parse(JSON.stringify(a));
+    for (var k in b) {
+      if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k])) {
+        result[k] = mergeDeep(result[k] || {}, b[k]);
+      } else {
+        if (result[k] === undefined) result[k] = b[k];
+      }
+    }
+    return result;
+  }
+
   function init() {
     var stored = getData();
-    if (stored) { data = stored; } else { data = JSON.parse(JSON.stringify(defaultData)); saveData(data); }
+    if (stored) { data = mergeDeep(stored, defaultData); } else { data = JSON.parse(JSON.stringify(defaultData)); }
+    saveData(data);
 
     render();
     updatePreview();
