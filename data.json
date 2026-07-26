@@ -4,6 +4,15 @@
     "layout": "wide",
     "heroStyle": "centered"
   },
+  "style": {
+    "fontPair": "modern-sans",
+    "roundness": "rounded",
+    "shadowDepth": "soft",
+    "spacing": "normal",
+    "headerFixed": true,
+    "buttonStyle": "rounded",
+    "sectionStyle": "bordered"
+  },
   "site": {
     "title": "Teacher Portfolio"
   },

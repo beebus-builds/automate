@@ -1,0 +1,8 @@
+{
+  "modern-sans": { "heading": "'Plus Jakarta Sans', sans-serif", "body": "'Inter', sans-serif", "label": "Modern Sans" },
+  "classic-serif": { "heading": "'Playfair Display', serif", "body": "'Inter', serif", "label": "Classic Serif" },
+  "academic": { "heading": "'Merriweather', serif", "body": "'Source Sans Pro', sans-serif", "label": "Academic" },
+  "playful": { "heading": "'DM Sans', sans-serif", "body": "'Nunito', sans-serif", "label": "Playful" },
+  "minimalist": { "heading": "'Helvetica Neue', sans-serif", "body": "'Helvetica Neue', sans-serif", "label": "Minimalist" },
+  "elegant": { "heading": "'Cormorant Garamond', serif", "body": "'Proza Libre', sans-serif", "label": "Elegant" }
+}

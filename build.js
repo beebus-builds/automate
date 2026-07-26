@@ -115,7 +115,57 @@ css = css.replace(/{{PRIMARY_LIGHT}}/g, rgba(selectedTheme.primary, 0.12));
 css = css.replace(/{{ACCENT_COLOR}}/g, selectedTheme.accent);
 css = css.replace(/{{ACCENT_LIGHT}}/g, rgba(selectedTheme.accent, 0.12));
 
-html = html.replace('class="layout-wide"', 'class="layout-' + (content.theme.layout || 'wide') + '"');
+var styleOpts = content.style || {};
+var sectionStyle = styleOpts.sectionStyle || 'bordered';
+
+html = html.replace('class="layout-wide"', 'class="layout-' + (content.theme.layout || 'wide') + ' sec-' + sectionStyle + '"');
+
+// Style customizations
+var fonts = JSON.parse(fs.readFileSync(path.join(__dirname, 'themes', 'fonts.json'), 'utf8'));
+var fontPair = fonts[styleOpts.fontPair || 'modern-sans'] || fonts['modern-sans'];
+
+var roundness = styleOpts.roundness || 'rounded';
+var radiusMap = {
+  sharp:  { sm: '2px',  md: '4px',  lg: '6px',  full: '8px' },
+  rounded:{ sm: '8px',  md: '12px', lg: '16px', full: '9999px' },
+  pill:   { sm: '24px', md: '32px', lg: '40px', full: '9999px' }
+};
+var rad = radiusMap[roundness] || radiusMap.rounded;
+
+var shadowDepth = styleOpts.shadowDepth || 'soft';
+var shadowMap = {
+  flat:  { sm: 'none', md: 'none', lg: 'none', xl: 'none' },
+  soft:  { sm: '0 1px 2px rgba(0,0,0,0.05)', md: '0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05)', lg: '0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.04)', xl: '0 20px 25px -5px rgba(0,0,0,0.08),0 8px 10px -6px rgba(0,0,0,0.04)' },
+  elevated: { sm: '0 2px 4px rgba(0,0,0,0.08)', md: '0 8px 16px rgba(0,0,0,0.1)', lg: '0 16px 24px rgba(0,0,0,0.1)', xl: '0 24px 48px rgba(0,0,0,0.12)' },
+  deep:  { sm: '0 3px 6px rgba(0,0,0,0.12)', md: '0 12px 24px rgba(0,0,0,0.14)', lg: '0 24px 48px rgba(0,0,0,0.16)', xl: '0 40px 80px rgba(0,0,0,0.2)' }
+};
+var shad = shadowMap[shadowDepth] || shadowMap.soft;
+
+var spacingMap = { compact: '48px', normal: '96px', spacious: '140px' };
+var sectionPad = spacingMap[styleOpts.spacing || 'normal'] || spacingMap.normal;
+
+var btnStyleMap = { square: '2px', rounded: '12px', pill: '9999px' };
+var btnRadius = btnStyleMap[styleOpts.buttonStyle || 'rounded'] || btnStyleMap.rounded;
+
+var headerPos = styleOpts.headerFixed !== false ? 'fixed' : 'relative';
+var hasHeaderPad = headerPos === 'fixed' ? 'padding-top: 80px;' : '';
+if (hasHeaderPad) {
+  html = html.replace('</head>', '<style>body.website-page { ' + hasHeaderPad + ' }</style></head>');
+}
+
+css = css.replace(/{{FONT_HEADING}}/g, fontPair.heading);
+css = css.replace(/{{FONT_BODY}}/g, fontPair.body);
+css = css.replace(/{{RADIUS_SM}}/g, rad.sm);
+css = css.replace(/{{RADIUS_MD}}/g, rad.md);
+css = css.replace(/{{RADIUS_LG}}/g, rad.lg);
+css = css.replace(/{{RADIUS_FULL}}/g, rad.full);
+css = css.replace(/{{SHADOW_SM}}/g, shad.sm);
+css = css.replace(/{{SHADOW_MD}}/g, shad.md);
+css = css.replace(/{{SHADOW_LG}}/g, shad.lg);
+css = css.replace(/{{SHADOW_XL}}/g, shad.xl);
+css = css.replace(/{{SECTION_PADDING}}/g, sectionPad);
+css = css.replace(/{{HEADER_BEHAVIOR}}/g, headerPos);
+css = css.replace(/{{BTN_RADIUS}}/g, btnRadius);
 
 var distDir = path.join(__dirname, 'dist');
 var cssDir = path.join(distDir, 'css');

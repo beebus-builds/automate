@@ -178,6 +178,13 @@
     content.querySelectorAll('.theme-card').forEach(function (card) { card.addEventListener('click', function () { onThemeSelect(card); }); });
     content.querySelectorAll('input[name="layout"]').forEach(function (r) { r.addEventListener('change', function () { onLayoutChange(r); }); });
     content.querySelectorAll('input[name="heroStyle"]').forEach(function (r) { r.addEventListener('change', function () { onHeroStyleChange(r); }); });
+    content.querySelectorAll('#fontPair').forEach(function (sel) { sel.addEventListener('change', function () { onStyleChange('fontPair', sel.value); }); });
+    content.querySelectorAll('input[name="roundness"]').forEach(function (r) { r.addEventListener('change', function () { onStyleChange('roundness', r.value); }); });
+    content.querySelectorAll('input[name="shadowDepth"]').forEach(function (r) { r.addEventListener('change', function () { onStyleChange('shadowDepth', r.value); }); });
+    content.querySelectorAll('input[name="spacing"]').forEach(function (r) { r.addEventListener('change', function () { onStyleChange('spacing', r.value); }); });
+    content.querySelectorAll('input[name="buttonStyle"]').forEach(function (r) { r.addEventListener('change', function () { onStyleChange('buttonStyle', r.value); }); });
+    content.querySelectorAll('input[name="sectionStyle"]').forEach(function (r) { r.addEventListener('change', function () { onStyleChange('sectionStyle', r.value); }); });
+    content.querySelectorAll('#headerFixed').forEach(function (chk) { chk.addEventListener('change', function () { onStyleChange('headerFixed', chk.checked); }); });
     content.querySelectorAll('.quick-action').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); switchTab(a.dataset.tab); }); });
     content.querySelectorAll('.media-item').forEach(function (item) { item.addEventListener('click', function () { selectMedia(item); }); });
     content.querySelectorAll('.nav-tab').forEach(function (btn) {
@@ -210,6 +217,13 @@
   function onHeroStyleChange(radio) {
     if (!data.theme) data.theme = {};
     data.theme.heroStyle = radio.value;
+    saveData(data);
+    updatePreview();
+  }
+
+  function onStyleChange(key, value) {
+    if (!data.style) data.style = {};
+    data.style[key] = value;
     saveData(data);
     updatePreview();
   }
@@ -404,6 +418,7 @@
       { id: 'cyber', label: 'Cyber STEM', primary: '#0284c7', accent: '#0891b2', desc: 'Cyan & Tech Slate' }
     ];
     if (!data.theme) data.theme = { name: 'modern', layout: 'wide', heroStyle: 'centered' };
+    if (!data.style) data.style = { fontPair: 'modern-sans', roundness: 'rounded', shadowDepth: 'soft', spacing: 'normal', headerFixed: true, buttonStyle: 'rounded', sectionStyle: 'bordered' };
     var current = data.theme.name || 'modern';
     var themeCards = themesList.map(function (t) {
       var ac = t.id === current ? ' active' : '';
@@ -419,10 +434,97 @@
       var ch = (data.theme.heroStyle || 'centered') === s ? ' checked' : '';
       return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="heroStyle" value="' + s + '"' + ch + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</label>';
     }).join('');
+
+    var sty = data.style;
+    var fontPairs = [
+      { id: 'modern-sans', label: 'Modern Sans' },
+      { id: 'classic-serif', label: 'Classic Serif' },
+      { id: 'academic', label: 'Academic' },
+      { id: 'playful', label: 'Playful' },
+      { id: 'minimalist', label: 'Minimalist' },
+      { id: 'elegant', label: 'Elegant' }
+    ];
+    var fontOpts = fontPairs.map(function (f) {
+      return '<option value="' + f.id + '"' + (sty.fontPair === f.id ? ' selected' : '') + '>' + f.label + '</option>';
+    }).join('');
+
+    var roundnessOpts = [
+      { id: 'sharp', label: 'Sharp (2-6px)' },
+      { id: 'rounded', label: 'Rounded (8-16px)' },
+      { id: 'pill', label: 'Pill (24-40px)' }
+    ];
+    var roundHTML = roundnessOpts.map(function (r) {
+      var ch = (sty.roundness || 'rounded') === r.id ? ' checked' : '';
+      return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="roundness" value="' + r.id + '"' + ch + '>' + r.label + '</label>';
+    }).join('');
+
+    var shadowOpts = [
+      { id: 'flat', label: 'Flat (no shadow)' },
+      { id: 'soft', label: 'Soft (subtle)' },
+      { id: 'elevated', label: 'Elevated (medium)' },
+      { id: 'deep', label: 'Deep (heavy)' }
+    ];
+    var shadowRadios = shadowOpts.map(function (s) {
+      var ch = (sty.shadowDepth || 'soft') === s.id ? ' checked' : '';
+      return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="shadowDepth" value="' + s.id + '"' + ch + '>' + s.label + '</label>';
+    }).join('');
+
+    var spacingOpts = [
+      { id: 'compact', label: 'Compact' },
+      { id: 'normal', label: 'Normal' },
+      { id: 'spacious', label: 'Spacious' }
+    ];
+    var spaceRadios = spacingOpts.map(function (s) {
+      var ch = (sty.spacing || 'normal') === s.id ? ' checked' : '';
+      return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="spacing" value="' + s.id + '"' + ch + '>' + s.label + '</label>';
+    }).join('');
+
+    var btnOpts = [
+      { id: 'square', label: 'Square' },
+      { id: 'rounded', label: 'Rounded' },
+      { id: 'pill', label: 'Pill' }
+    ];
+    var btnRadios = btnOpts.map(function (b) {
+      var ch = (sty.buttonStyle || 'rounded') === b.id ? ' checked' : '';
+      return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="buttonStyle" value="' + b.id + '"' + ch + '>' + b.label + '</label>';
+    }).join('');
+
+    var secOpts = [
+      { id: 'bordered', label: 'Bordered' },
+      { id: 'elevated', label: 'Elevated' },
+      { id: 'minimal', label: 'Minimal' }
+    ];
+    var secRadios = secOpts.map(function (s) {
+      var ch = (sty.sectionStyle || 'bordered') === s.id ? ' checked' : '';
+      return '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="sectionStyle" value="' + s.id + '"' + ch + '>' + s.label + '</label>';
+    }).join('');
+
+    var headerCheck = sty.headerFixed !== false ? ' checked' : '';
+
     return '<div class="cms-panel"><div class="cms-panel__header"><h2>Themes &amp; Style</h2><p>Customize the look and feel of your portfolio.</p></div>' +
-      '<div class="cms-section"><div class="cms-section__title">Choose a Theme</div><p style="font-size:.82rem;color:#64748b;margin-bottom:14px">8 professional design presets — click to apply instantly.</p><div class="theme-selector" style="grid-template-columns:repeat(4,1fr)">' + themeCards + '</div></div>' +
+      '<div class="cms-section"><div class="cms-section__title">Theme Color Presets</div><p style="font-size:.82rem;color:#64748b;margin-bottom:14px">8 professional design presets — click to apply instantly.</p><div class="theme-selector" style="grid-template-columns:repeat(4,1fr)">' + themeCards + '</div></div>' +
       '<div class="cms-section"><div class="cms-section__title">Layout Width</div><div style="display:flex;gap:24px;margin-bottom:20px">' + layoutHTML + '</div></div>' +
-      '<div class="cms-section"><div class="cms-section__title">Hero Alignment</div><div style="display:flex;gap:24px;margin-bottom:20px">' + heroHTML + '</div></div></div>';
+      '<div class="cms-section"><div class="cms-section__title">Hero Alignment</div><div style="display:flex;gap:24px;margin-bottom:20px">' + heroHTML + '</div></div>' +
+
+      '<hr style="border:0;border-top:1px solid #e2e8f0;margin:24px 0" />' +
+      '<h3 style="font-size:.9rem;font-weight:700;margin-bottom:16px">Advanced Style Customization</h3>' +
+
+      '<div class="cms-section"><div class="cms-section__title">Font Pair</div><p style="font-size:.75rem;color:#64748b;margin-bottom:10px">Choose heading + body font combination</p>' +
+      '<select class="cms-input" id="fontPair" style="max-width:320px">' + fontOpts + '</select></div>' +
+
+      '<div class="cms-section"><div class="cms-section__title">Corner Roundness</div><p style="font-size:.75rem;color:#64748b;margin-bottom:8px">Control how rounded cards, buttons and sections appear</p><div style="display:flex;gap:24px">' + roundHTML + '</div></div>' +
+
+      '<div class="cms-section"><div class="cms-section__title">Shadow Depth</div><p style="font-size:.75rem;color:#64748b;margin-bottom:8px">Control depth and elevation of cards and sections</p><div style="display:flex;gap:24px">' + shadowRadios + '</div></div>' +
+
+      '<div class="cms-section"><div class="cms-section__title">Section Spacing</div><p style="font-size:.75rem;color:#64748b;margin-bottom:8px">Vertical spacing between sections</p><div style="display:flex;gap:24px">' + spaceRadios + '</div></div>' +
+
+      '<div class="cms-section"><div class="cms-section__title">Button Shape</div><p style="font-size:.75rem;color:#64748b;margin-bottom:8px">Shape of call-to-action buttons</p><div style="display:flex;gap:24px">' + btnRadios + '</div></div>' +
+
+      '<div class="cms-section"><div class="cms-section__title">Section Style</div><p style="font-size:.75rem;color:#64748b;margin-bottom:8px">Visual treatment of alternating sections</p><div style="display:flex;gap:24px">' + secRadios + '</div></div>' +
+
+      '<div class="cms-section"><div class="cms-section__title">Header Behavior</div><p style="font-size:.75rem;color:#64748b;margin-bottom:8px">Stick header to top on scroll or let it scroll with page</p>' +
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="headerFixed"' + headerCheck + '><span style="font-size:.85rem">Fixed header (stays at top)</span></label></div>' +
+      '</div>';
   }
 
   function updatePreview() {
@@ -445,26 +547,62 @@
 
   function generatePreviewHTML() {
     if (!data.theme) data.theme = { name: 'modern', layout: 'wide', heroStyle: 'centered' };
+    if (!data.style) data.style = { fontPair: 'modern-sans', roundness: 'rounded', shadowDepth: 'soft', spacing: 'normal', headerFixed: true, buttonStyle: 'rounded', sectionStyle: 'bordered' };
     var theme = THEMES[data.theme.name] || THEMES.modern;
     var primary = theme.primary, accent = theme.accent;
     function rgba(h, a) { var r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,5),16), b=parseInt(h.slice(5,7),16); return 'rgba('+r+','+g+','+b+','+a+')'; }
     var s = data.site || {}, h = data.hero || {}, a = data.about || {}, p = data.philosophy || {}, c = data.contact || {};
+    var sty = data.style;
+
+    // Fonts
+    var fontMap = {
+      'modern-sans':{h:"'Plus Jakarta Sans',sans-serif",b:"'Inter',sans-serif"},
+      'classic-serif':{h:"'Playfair Display',serif",b:"'Inter',serif"},
+      'academic':{h:"'Merriweather',serif",b:"'Source Sans Pro',sans-serif"},
+      'playful':{h:"'DM Sans',sans-serif",b:"'Nunito',sans-serif"},
+      'minimalist':{h:"'Helvetica Neue',sans-serif",b:"'Helvetica Neue',sans-serif"},
+      'elegant':{h:"'Cormorant Garamond',serif",b:"'Proza Libre',sans-serif"}
+    };
+    var fp = fontMap[sty.fontPair] || fontMap['modern-sans'];
+
+    // Roundness
+    var rMap = {sharp:{sm:'2px',md:'4px',lg:'6px',full:'8px'},rounded:{sm:'8px',md:'12px',lg:'16px',full:'9999px'},pill:{sm:'24px',md:'32px',lg:'40px',full:'9999px'}};
+    var rad = rMap[sty.roundness] || rMap.rounded;
+
+    // Shdows
+    var shMap = {
+      flat:{sm:'none',md:'none',lg:'none',xl:'none'},
+      soft:{sm:'0 1px 2px rgba(0,0,0,0.05)',md:'0 4px 6px -1px rgba(0,0,0,0.07),0 2px 4px -2px rgba(0,0,0,0.05)',lg:'0 10px 15px -3px rgba(0,0,0,0.08),0 4px 6px -4px rgba(0,0,0,0.04)',xl:'0 20px 25px -5px rgba(0,0,0,0.08),0 8px 10px -6px rgba(0,0,0,0.04)'},
+      elevated:{sm:'0 2px 4px rgba(0,0,0,0.08)',md:'0 8px 16px rgba(0,0,0,0.1)',lg:'0 16px 24px rgba(0,0,0,0.1)',xl:'0 24px 48px rgba(0,0,0,0.12)'},
+      deep:{sm:'0 3px 6px rgba(0,0,0,0.12)',md:'0 12px 24px rgba(0,0,0,0.14)',lg:'0 24px 48px rgba(0,0,0,0.16)',xl:'0 40px 80px rgba(0,0,0,0.2)'}
+    };
+    var sh = shMap[sty.shadowDepth] || shMap.soft;
+    var sp = {compact:'48px',normal:'96px',spacious:'140px'}[sty.spacing] || '96px';
+    var btnR = {square:'2px',rounded:'12px',pill:'9999px'}[sty.buttonStyle] || '12px';
+    var hdrFixed = sty.headerFixed !== false;
+
     var statsHtml = (a.stats || []).map(function (st) { return '<div style="text-align:center"><strong style="font-size:1.3rem;color:'+primary+';display:block">'+escHtml(st.number)+(st.suffix||'')+'</strong><span style="font-size:.7rem;color:#64748b">'+escHtml(st.label||'')+'</span></div>'; }).join('');
-    var coursesHtml = (data.courses || []).map(function (co) { return '<div style="padding:12px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;background:#fff"><div style="font-size:1.1rem;margin-bottom:4px">'+escHtml(co.icon||'')+'</div><strong>'+escHtml(co.title||'')+'</strong><p style="font-size:.75rem;color:#64748b;margin:2px 0">'+escHtml(co.description||'')+'</p><span style="font-size:.65rem;background:'+rgba(accent,.12)+';color:'+accent+';padding:2px 8px;border-radius:999px">'+escHtml(co.level||'')+'</span></div>'; }).join('');
-    var pointsHtml = (p.points || []).map(function (pt) { return '<div style="background:#fff;padding:12px;border-radius:8px;border:1px solid #e2e8f0"><strong>'+escHtml(pt.title||'')+'</strong><p style="font-size:.75rem;color:#64748b;margin-top:4px">'+escHtml(pt.description||'')+'</p></div>'; }).join('');
-    var achievementsHtml = (data.achievements || []).map(function (ach) { return '<div style="padding:12px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:8px;background:#fff"><span style="font-size:.65rem;background:'+rgba(primary,.12)+';color:'+primary+';padding:2px 8px;border-radius:999px;font-weight:700">'+escHtml(ach.year||'')+'</span><strong style="display:block;margin-top:4px">'+escHtml(ach.title||'')+'</strong><p style="font-size:.75rem;color:#64748b">'+escHtml(ach.description||'')+'</p></div>'; }).join('');
+    var coursesHtml = (data.courses || []).map(function (co) { return '<div style="padding:12px;border:1px solid #e2e8f0;border-radius:var(--r-md);margin-bottom:8px;background:#fff;box-shadow:var(--sh-sm)"><div style="font-size:1.1rem;margin-bottom:4px">'+escHtml(co.icon||'')+'</div><strong>'+escHtml(co.title||'')+'</strong><p style="font-size:.75rem;color:#64748b;margin:2px 0">'+escHtml(co.description||'')+'</p><span style="font-size:.65rem;background:'+rgba(accent,.12)+';color:'+accent+';padding:2px 8px;border-radius:999px">'+escHtml(co.level||'')+'</span></div>'; }).join('');
+    var pointsHtml = (p.points || []).map(function (pt) { return '<div style="background:#fff;padding:12px;border-radius:var(--r-md);border:1px solid #e2e8f0;box-shadow:var(--sh-sm)"><strong>'+escHtml(pt.title||'')+'</strong><p style="font-size:.75rem;color:#64748b;margin-top:4px">'+escHtml(pt.description||'')+'</p></div>'; }).join('');
+    var achievementsHtml = (data.achievements || []).map(function (ach) { return '<div style="padding:12px;border:1px solid #e2e8f0;border-radius:var(--r-md);margin-bottom:8px;background:#fff;box-shadow:var(--sh-sm)"><span style="font-size:.65rem;background:'+rgba(primary,.12)+';color:'+primary+';padding:2px 8px;border-radius:999px;font-weight:700">'+escHtml(ach.year||'')+'</span><strong style="display:block;margin-top:4px">'+escHtml(ach.title||'')+'</strong><p style="font-size:.75rem;color:#64748b">'+escHtml(ach.description||'')+'</p></div>'; }).join('');
+    var altSecBg = data.theme.sectionStyle === 'elevated' ? '#fff' : '#edf2f7';
     return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>' +
-      ':root{--p:'+primary+';--a:'+accent+'}body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#1e293b;line-height:1.6;margin:0;padding:0;background:#f8fafc}.container{max-width:900px;margin:0 auto;padding:0 20px}.header{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 0;position:sticky;top:0;z-index:10}.logo{font-weight:800;font-size:1.05rem;color:var(--p);text-decoration:none}.hero{padding:32px 0;background:linear-gradient(135deg,'+rgba(primary,.04)+',#fff);text-align:'+(data.theme.heroStyle||'centered')+'}' +
-      '.hero__title{font-size:1.7rem;font-weight:800;margin-bottom:8px}.highlight{color:var(--p)}.hero__desc{font-size:.85rem;color:#64748b;max-width:480px;'+(data.theme.heroStyle==='centered'?'margin:0 auto':'')+'}.section{padding:24px 0}.section__title{font-size:1.15rem;font-weight:700;margin-bottom:14px;text-align:center}.stats{display:flex;justify-content:space-around;background:#fff;padding:14px;border-radius:10px;border:1px solid #e2e8f0;margin-top:14px}.phil{display:grid;grid-template-columns:1fr 1fr;gap:10px}.foot{padding:16px 0;text-align:center;font-size:.75rem;color:#64748b;border-top:1px solid #e2e8f0;margin-top:24px}' +
+      ':root{--p:'+primary+';--a:'+accent+
+      ';--fh:'+fp.h+';--fb:'+fp.b+
+      ';--r-sm:'+rad.sm+';--r-md:'+rad.md+';--r-lg:'+rad.lg+';--r-full:'+rad.full+
+      ';--sh-sm:'+sh.sm+';--sh-md:'+sh.md+';--sh-lg:'+sh.lg+';--sh-xl:'+sh.xl+
+      ';--sp:'+sp+';--br:'+btnR+
+      '}body{font-family:var(--fb);color:#1e293b;line-height:1.6;margin:0;padding:0;background:#f8fafc}.container{max-width:900px;margin:0 auto;padding:0 20px}.header{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 0;position:'+(hdrFixed?'sticky':'static')+';top:0;z-index:10}.logo{font-weight:800;font-size:1.05rem;color:var(--p);text-decoration:none}.hero{padding:32px 0;background:linear-gradient(135deg,'+rgba(primary,.04)+',#fff);text-align:'+(data.theme.heroStyle||'centered')+'}' +
+      '.hero__title{font-size:1.7rem;font-weight:800;margin-bottom:8px;font-family:var(--fh)}.highlight{color:var(--p)}.hero__desc{font-size:.85rem;color:#64748b;max-width:480px;'+(data.theme.heroStyle==='centered'?'margin:0 auto':'')+'}.section{padding:var(--sp) 0}.section__title{font-size:1.15rem;font-weight:700;margin-bottom:14px;text-align:center;font-family:var(--fh)}.stats{display:flex;justify-content:space-around;background:#fff;padding:14px;border-radius:var(--r-md);border:1px solid #e2e8f0;box-shadow:var(--sh-sm);margin-top:14px}.phil{display:grid;grid-template-columns:1fr 1fr;gap:10px}.foot{padding:16px 0;text-align:center;font-size:.75rem;color:#64748b;border-top:1px solid #e2e8f0;margin-top:24px}' +
       '@media(max-width:600px){.phil{grid-template-columns:1fr}}</style></head><body>' +
       '<div class="header"><div class="container"><span class="logo">'+escHtml(s.title||'Portfolio')+'</span></div></div>' +
       '<section class="hero"><div class="container"><span style="font-size:.65rem;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:.1em">'+escHtml(h.tagline||'')+'</span>' +
       '<h1 class="hero__title">Empowering <span class="highlight">'+escHtml(h.highlight||'Every Learner')+'</span></h1>' +
       '<p class="hero__desc">'+escHtml(h.description||'')+'</p></div></section>' +
       '<section class="section"><div class="container"><h2 class="section__title">About Me</h2><p style="font-size:.85rem;color:#475569">'+escHtml(a.lead||'')+'</p><div class="stats">'+statsHtml+'</div></div></section>' +
-      '<section class="section" style="background:#edf2f7"><div class="container"><h2 class="section__title">Courses</h2>'+coursesHtml+'</div></section>' +
-      '<section class="section"><div class="container"><h2 class="section__title">Philosophy</h2><div style="background:#fff;padding:14px;border-left:4px solid var(--p);border-radius:0 8px 8px 0;font-style:italic;font-size:.85rem;margin-bottom:16px">"'+escHtml(p.quote||'')+'"</div><div class="phil">'+pointsHtml+'</div></div></section>' +
-      '<section class="section" style="background:#edf2f7"><div class="container"><h2 class="section__title">Achievements</h2>'+achievementsHtml+'</div></section>' +
+      '<section class="section" style="background:'+altSecBg+'"><div class="container"><h2 class="section__title">Courses</h2>'+coursesHtml+'</div></section>' +
+      '<section class="section"><div class="container"><h2 class="section__title">Philosophy</h2><div style="background:#fff;padding:14px;border-left:4px solid var(--p);border-radius:0 var(--r-md) var(--r-md) 0;font-style:italic;font-size:.85rem;margin-bottom:16px;box-shadow:var(--sh-sm)">"'+escHtml(p.quote||'')+'"</div><div class="phil">'+pointsHtml+'</div></div></section>' +
+      '<section class="section" style="background:'+altSecBg+'"><div class="container"><h2 class="section__title">Achievements</h2>'+achievementsHtml+'</div></section>' +
       '<section class="section"><div class="container"><h2 class="section__title">Get in Touch</h2><p style="font-size:.8rem;text-align:center;color:#64748b">'+escHtml(c.email||'')+' &bull; '+escHtml(c.phone||'')+'</p></div></section>' +
       '<footer class="foot"><p>&copy; '+new Date().getFullYear()+' '+escHtml(s.title||'')+'</p></footer>' +
       '</body></html>';

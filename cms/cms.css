@@ -489,6 +489,26 @@ body {
   .form-row, .form-row-3 { grid-template-columns: 1fr; }
 }
 
+/* Style customization */
+.cms-section select.cms-input {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: .82rem;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  transition: border-color .2s;
+}
+.cms-section select.cms-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.1);
+}
+.cms-section hr + h3 {
+  margin-top: 0;
+}
+
 @media (max-width: 600px) {
   .dashboard__stats { grid-template-columns: 1fr; }
   .media-grid { grid-template-columns: repeat(2,1fr); }
