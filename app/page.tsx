@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Logo } from '@/components/Logo';
 
 export default function HomePage() {
   return (
@@ -8,7 +9,7 @@ export default function HomePage() {
       {/* Header */}
       <header style={{ padding: '24px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1200, margin: '0 auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>🍎</div>
+          <Logo size={36} />
           <span style={{ fontWeight: 800, fontSize: '1.2rem', letterSpacing: '-0.5px', color: '#0f172a' }}>TeacherFolio</span>
         </div>
         <nav style={{ display: 'flex', gap: 16, alignItems: 'center' }}>

@@ -8,6 +8,7 @@ import { Courses, Philosophy, Achievements, SEO } from './components/CoursesPhil
 import { Media } from './components/MediaTab';
 import { ThemeTab } from './components/ThemeTab';
 import { Preview } from './components/Preview';
+import { Logo } from '@/components/Logo';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
@@ -53,9 +54,12 @@ function CMSInner() {
   return (
     <div className="cms">
       <div className="cms-sidebar">
-        <div className="cms-sidebar-brand">
-          <h1>Teacher CMS</h1>
-          <p>Portfolio Builder</p>
+        <div className="cms-sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Logo size={32} />
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1rem' }}>TeacherFolio</h1>
+            <p style={{ margin: 0, fontSize: '0.75rem' }}>CMS Dashboard</p>
+          </div>
         </div>
         <div className="cms-sidebar-nav">
           {tabs.map(t => (

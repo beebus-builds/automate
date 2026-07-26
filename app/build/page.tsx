@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { Logo } from '@/components/Logo';
 
 const themes = [
   { id: 'modern', label: 'Modern', primary: '#4f46e5', accent: '#059669' },
@@ -218,7 +219,7 @@ export default function BuildPage() {
       {/* Top bar */}
       <div style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit' }}>
-          <span style={{ fontSize: '1.2rem' }}>🍎</span>
+          <Logo size={28} />
           <span style={{ fontWeight: 700, fontSize: '.95rem' }}>TeacherFolio</span>
         </Link>
         <Link href="/" style={{ marginLeft: 8, fontSize: '.75rem', color: '#94a3b8', textDecoration: 'none' }}>← Home</Link>
