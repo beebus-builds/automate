@@ -5,9 +5,13 @@
     "heroStyle": "centered"
   },
   "site": {
-    "title": "Teacher Portfolio",
-    "primaryColor": "#4f46e5",
-    "accentColor": "#059669"
+    "title": "Teacher Portfolio"
+  },
+  "seo": {
+    "metaTitle": "",
+    "metaDesc": "",
+    "ogImage": "",
+    "googleAnalytics": ""
   },
   "hero": {
     "tagline": "Welcome to My Teaching Portfolio",

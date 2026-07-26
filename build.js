@@ -94,6 +94,18 @@ html = html.replace(/{{CONTACT_PHONE}}/g, escHtml(c.phone));
 html = html.replace(/{{CONTACT_LOCATION}}/g, escHtml(c.location));
 html = html.replace(/{{YEAR}}/g, year);
 
+// SEO
+var seo = content.seo || {};
+var metaTitle = seo.metaTitle || s.title || '';
+var metaDesc = seo.metaDesc || h.description || '';
+var ogImage = seo.ogImage || '';
+var gaId = seo.googleAnalytics || '';
+var gaScript = gaId ? '<script async src="https://www.googletagmanager.com/gtag/js?id=' + escHtml(gaId) + '"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","' + escHtml(gaId) + '");</script>' : '';
+html = html.replace(/{{SEO_TITLE}}/g, escHtml(metaTitle));
+html = html.replace(/{{SEO_DESC}}/g, escHtml(metaDesc));
+html = html.replace(/{{SEO_IMAGE}}/g, escHtml(ogImage));
+html = html.replace('{{GA_SCRIPT}}', gaScript);
+
 var themes = JSON.parse(fs.readFileSync(path.join(__dirname, 'themes', 'index.json'), 'utf8'));
 var selectedTheme = themes[content.theme.name || 'modern'];
 var css = cssTpl;
