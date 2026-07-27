@@ -84,7 +84,7 @@ function CMSInner() {
             <button className="cms-btn cms-btn--secondary" onClick={undo}>↩ Undo</button>
             <button className="cms-btn cms-btn--secondary" onClick={togglePreview}>👁 Preview</button>
             <button className="cms-btn cms-btn--primary" onClick={triggerBuild}>🚀 Build Site</button>
-            <a href="/_site" target="_blank" className="cms-btn cms-btn--secondary" style={{ textDecoration: 'none' }}>🌐 View Site</a>
+            <a href="/site-preview" target="_blank" className="cms-btn cms-btn--secondary" style={{ textDecoration: 'none' }}>🌐 View Site</a>
           </div>
         </div>
 

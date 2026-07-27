@@ -588,7 +588,7 @@ export default function BuildPage() {
                 <a href={downloadUrl} download style={{ padding: '12px 24px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#fff', borderRadius: 12, fontWeight: 700, textDecoration: 'none', fontSize: '.9rem', boxShadow: '0 4px 14px rgba(99,102,241,0.3)' }}>
                   📦 Download ZIP Bundle
                 </a>
-                <a href="/_site" target="_blank" style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.08)', color: '#fff', borderRadius: 12, fontWeight: 600, textDecoration: 'none', fontSize: '.9rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <a href="/site-preview" target="_blank" style={{ padding: '12px 24px', background: 'rgba(255,255,255,0.08)', color: '#fff', borderRadius: 12, fontWeight: 600, textDecoration: 'none', fontSize: '.9rem', border: '1px solid rgba(255,255,255,0.1)' }}>
                   👁 Live Local Preview
                 </a>
                 <button onClick={handleDeploy} disabled={deployStatus === 'deploying'} style={{ padding: '12px 24px', background: '#10b981', color: '#fff', borderRadius: 12, fontWeight: 700, border: 'none', cursor: deployStatus === 'deploying' ? 'not-allowed' : 'pointer', fontSize: '.9rem' }}>

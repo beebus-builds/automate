@@ -110,7 +110,7 @@ export function CMSProvider({ children }: { children: React.ReactNode }) {
 
   const triggerBuild = useCallback(async () => {
     await fetch('/api/build', { method: 'POST' });
-    showToast('Site built! Visit /_site/');
+    showToast('Site built! Visit /site-preview/');
   }, [showToast]);
 
   const togglePreview = useCallback(() => setPreviewOpen(p => !p), []);

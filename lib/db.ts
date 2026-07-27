@@ -302,5 +302,5 @@ export async function runBuild(data: any): Promise<string> {
   fs.writeFileSync(path.join(distDirCss, 'style.css'), css);
   fs.writeFileSync(path.join(distDirJs, 'script.js'), jsSrc);
 
-  return 'Site built successfully at /_site/';
+  return 'Site built successfully at /site-preview/';
 }
