@@ -249,6 +249,7 @@ export async function runBuild(data: any): Promise<string> {
   html = html.replace('{{GA_SCRIPT}}', gaScript);
 
   const selectedTheme = themes[c.theme?.name || 'modern'] || themes.modern;
+  html = html.replace(/{{PRIMARY_COLOR}}/g, selectedTheme.primary);
   let css = cssTpl;
   css = css.replace(/{{PRIMARY_COLOR}}/g, selectedTheme.primary);
   css = css.replace(/{{PRIMARY_DARK}}/g, darken(selectedTheme.primary));
