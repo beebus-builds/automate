@@ -158,6 +158,7 @@ export default function HomePage() {
             <div className="flex gap-5">
               <Link href="/build" className="text-xs text-slate-500 no-underline hover:text-slate-300 transition-colors">Build</Link>
               <Link href="/cms" className="text-xs text-slate-500 no-underline hover:text-slate-300 transition-colors">CMS</Link>
+              <Link href="/fractal" className="text-xs text-slate-500 no-underline hover:text-slate-300 transition-colors">Fractal</Link>
             </div>
             <p className="text-xs text-slate-600 m-0">&copy; 2026 TeacherFolio</p>
           </div>

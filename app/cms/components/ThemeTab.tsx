@@ -1,8 +1,12 @@
 'use client';
+import { useMemo, useState } from 'react';
 import { useCMS } from '../CMSContext';
+import { generateHarmonyPalette, readableText, HarmonyScheme, SCHEME_INFO } from '@/lib/palette';
 
 export function ThemeTab() {
-  const { data, update } = useCMS();
+  const { data, update, showToast } = useCMS();
+  const [seed, setSeed] = useState('#6366f1');
+  const [scheme, setScheme] = useState<HarmonyScheme>('complementary');
   const themes = [
     { id: 'modern', label: 'Modern', primary: '#4f46e5', accent: '#059669', desc: 'Indigo & Emerald' },
     { id: 'warm', label: 'Warm', primary: '#d97706', accent: '#b45309', desc: 'Amber & Gold' },
@@ -24,6 +28,14 @@ export function ThemeTab() {
 
   const labelCls = 'flex items-center gap-2 cursor-pointer text-sm';
 
+  const harmony = useMemo(() => generateHarmonyPalette(seed, scheme), [seed, scheme]);
+
+  const applyCustomTheme = () => {
+    update('theme.name', 'custom');
+    update('theme.customColors', harmony);
+    showToast('Custom palette applied!');
+  };
+
   return (
     <div className="cms-panel">
       <div className="cms-panel__header"><h2>Themes &amp; Style</h2><p>Customize the look and feel.</p></div>
@@ -42,6 +54,41 @@ export function ThemeTab() {
           ))}
         </div>
       </div>
+
+      <div className="cms-section">
+        <div className="cms-section__title">Palette Studio <span className="normal-case font-normal text-slate-500">(color-harmony generator)</span></div>
+        <div className="bg-surface-50 border border-white/10 rounded-xl p-4 mb-4">
+          <div className="flex gap-3 items-center mb-3 flex-wrap">
+            <label className="text-xs font-semibold text-slate-400">Seed color</label>
+            <input type="color" value={seed} onChange={e => setSeed(e.target.value)} className="w-10 h-9 rounded-lg border border-white/10 bg-transparent cursor-pointer" />
+            <input type="text" value={seed} onChange={e => { const v = e.target.value; if (/^#[0-9a-fA-F]{6}$/.test(v)) setSeed(v); }} className="cms-input max-w-[110px]" />
+            <span className="text-xs text-slate-500">HSL color-wheel math →</span>
+          </div>
+          <div className="flex gap-1.5 flex-wrap mb-3">
+            {(Object.keys(SCHEME_INFO) as HarmonyScheme[]).map(s => (
+              <button key={s} onClick={() => setScheme(s)} title={SCHEME_INFO[s]} className={`px-3 py-1 rounded-full text-[0.65rem] font-semibold transition-colors ${scheme === s ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30' : 'bg-transparent text-slate-400 border border-white/10 hover:border-white/20'}`}>
+                {s}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1.5 mb-4">
+            {Object.entries(harmony).map(([k, hex]) => (
+              <div key={k} className="flex-1">
+                <div className="h-10 rounded-lg border border-white/10" style={{ background: hex }} title={`${k}: ${hex}`} />
+                <div className="text-[0.6rem] text-slate-500 mt-1 truncate text-center">{k}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={applyCustomTheme} className="cms-btn cms-btn--primary">🎨 Apply Custom Theme</button>
+          {th.name === 'custom' && th.customColors && (
+            <div className="mt-3 text-xs text-emerald-400 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Custom palette active
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="cms-section">
         <div className="cms-section__title">Layout Width</div>
         <div className="flex gap-6">{['wide', 'boxed', 'full'].map(l => (

@@ -8,6 +8,7 @@ import { BuildSuccess } from '@/components/chat/BuildSuccess';
 import { CallPanel } from '@/components/chat/CallPanel';
 import { parseMessage, generateResponse, getSummary, emptyData, TeacherData } from '@/lib/conversation';
 import { getAllThemes, getCategories, categoryColors, searchThemes, mapThemeToBuildData } from '@/lib/themes';
+import { recommendThemes } from '@/lib/recommend';
 import { SkeletonPage } from '@/components/Skeleton';
 
 const allThemes = getAllThemes();
@@ -48,6 +49,11 @@ export default function BuildPage() {
 
   const filteredThemes = useMemo(() => searchThemes(themeSearch, themeCategory || undefined), [themeSearch, themeCategory]);
   const displayedThemes = useMemo(() => showAllThemes ? filteredThemes : filteredThemes.slice(0, 30), [filteredThemes, showAllThemes]);
+
+  const recommendations = useMemo(() => {
+    if (!dataCollected || !data.name) return [];
+    return recommendThemes(data, 6);
+  }, [dataCollected, data]);
 
   useEffect(() => {
     fetch('/api/auth')
@@ -237,6 +243,46 @@ export default function BuildPage() {
                 </div>
                 <input value={themeSearch} onChange={e => setThemeSearch(e.target.value)} placeholder="Search themes..." className="w-full px-4 py-2.5 bg-surface-800 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-500" />
               </div>
+
+              {recommendations.length > 0 && !themeSearch && !themeCategory && (
+                <div className="ml-10 mb-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm font-extrabold text-white">✨ Recommended for you</span>
+                    <span className="text-[0.6rem] text-slate-500">scored from your profile</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {recommendations.map(({ theme: t, score, reasons }) => {
+                      const isSelected = data.theme === t.id;
+                      const c = t.colors;
+                      return (
+                        <button key={t.id} onClick={() => selectTheme(t.id)} className={`p-2 rounded-xl text-left transition-all duration-150 hover:-translate-y-0.5 ${isSelected ? 'ring-2 ring-brand-400 shadow-lg shadow-brand-500/20' : 'border border-white/[0.06] hover:border-white/15'}`} style={{ background: isSelected ? 'rgba(99,102,241,0.15)' : 'transparent' }}>
+                          <div className="rounded-lg overflow-hidden border border-white/10 mb-2" style={{ background: c.background }}>
+                            <div className="px-2 py-1.5 flex items-center justify-between" style={{ background: c.surface }}>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.primary }} />
+                              <span className="h-1 w-8 rounded-full" style={{ background: c.muted }} />
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.accent }} />
+                            </div>
+                            <div className="px-2 py-2">
+                              <span className="block h-1.5 w-14 rounded-full mb-1.5" style={{ background: c.primary }} />
+                              <span className="block h-1 w-10 rounded-full" style={{ background: c.muted }} />
+                              <span className="block h-1 w-12 rounded-full mt-1.5" style={{ background: c.muted }} />
+                            </div>
+                            <div className="px-2 pb-2 flex gap-1">
+                              <span className="h-1.5 flex-1 rounded-full" style={{ background: c.accent, opacity: 0.8 }} />
+                              <span className="h-1.5 flex-1 rounded-full" style={{ background: c.muted, opacity: 0.5 }} />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between px-1 pb-0.5">
+                            <span className="text-xs font-semibold truncate">{t.name}</span>
+                            <span className="text-[0.6rem] font-bold text-emerald-400 flex-shrink-0 ml-1">{score}%</span>
+                          </div>
+                          <div className="px-1 text-[0.6rem] text-slate-500 truncate">{reasons[0] || t.category}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="ml-10 mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {displayedThemes.map(t => {
