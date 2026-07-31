@@ -6,3 +6,6 @@ public/uploads/*
 public/_site/.gitkeep
 dist/
 backup-cms/
+
+.env
+.env.local
