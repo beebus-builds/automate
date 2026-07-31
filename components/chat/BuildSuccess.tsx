@@ -14,115 +14,39 @@ interface Props {
 export function BuildSuccess({ name, downloadUrl, deployUrl, publicUrl, deployStatus, onDeploy }: Props) {
   const showUrl = deployUrl || publicUrl;
   return (
-    <div
-      style={{
-        background: '#1e293b',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 24,
-        padding: 32,
-        marginTop: 20,
-        textAlign: 'center',
-        marginLeft: 0,
-        boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-        animation: 'slideUp 0.3s ease',
-      }}
-    >
-      <h3
-        style={{
-          fontSize: '1.25rem',
-          fontWeight: 900,
-          color: '#fff',
-          margin: '0 0 6px',
-        }}
-      >
-        {name || 'Teacher'}&apos;s Website is Ready!
-      </h3>
+    <div className="glass rounded-3xl p-8 mt-6 text-center shadow-glow" style={{ animation: 'slideUp 0.4s ease both' }}>
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-2xl mx-auto mb-5 shadow-glow">
+        ✅
+      </div>
+      <h3 className="text-lg font-black text-white mb-2">{name || 'Teacher'}&apos;s Website is Ready!</h3>
 
       {showUrl ? (
-        <p style={{ fontSize: '.9rem', color: '#34d399', marginBottom: 16 }}>
+        <p className="text-sm text-emerald-400 mb-5">
           {deployUrl ? 'Deployed' : 'Published'} URL:{' '}
-          <a href={showUrl} target="_blank" style={{ color: '#34d399', fontWeight: 700, textDecoration: 'underline' }}>
-            {showUrl}
-          </a>
+          <a href={showUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline underline-offset-2">{showUrl}</a>
         </p>
       ) : (
-        <p style={{ fontSize: '.85rem', color: '#94a3b8', marginBottom: 20 }}>
-          Download your standalone ZIP package or deploy live.
-        </p>
+        <p className="text-sm text-slate-400 mb-6">Download your standalone bundle or deploy live.</p>
       )}
 
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-        <a
-          href={downloadUrl}
-          download
-          style={{
-            padding: '12px 24px',
-            background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-            color: '#fff',
-            borderRadius: 12,
-            fontWeight: 700,
-            textDecoration: 'none',
-            fontSize: '.9rem',
-            boxShadow: '0 4px 14px rgba(99,102,241,0.3)',
-          }}
-        >
-          Download ZIP Bundle
+      <div className="flex gap-3 justify-center flex-wrap">
+        <a href={downloadUrl} download className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all no-underline">
+          📦 Download ZIP Bundle
         </a>
-        <a
-          href={publicUrl || "/site-preview"}
-          target="_blank"
-          style={{
-            padding: '12px 24px',
-            background: 'rgba(255,255,255,0.08)',
-            color: '#fff',
-            borderRadius: 12,
-            fontWeight: 600,
-            textDecoration: 'none',
-            fontSize: '.9rem',
-            border: '1px solid rgba(255,255,255,0.1)',
-          }}
-        >
-          View Live Site
+        <a href={publicUrl || '/site-preview'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-3 bg-white/8 border border-white/12 text-white rounded-xl font-semibold text-sm hover:bg-white/12 transition-all no-underline">
+          👁 View Live Site
         </a>
         {!deployUrl && (
-          <button
-            onClick={onDeploy}
-            disabled={deployStatus === 'deploying'}
-            style={{
-              padding: '12px 24px',
-              background: '#10b981',
-              color: '#fff',
-              borderRadius: 12,
-              fontWeight: 700,
-              border: 'none',
-              cursor: deployStatus === 'deploying' ? 'not-allowed' : 'pointer',
-              fontSize: '.9rem',
-              transition: 'all 0.2s',
-            }}
-          >
-            {deployStatus === 'deploying' ? 'Deploying...' : 'Deploy Live'}
+          <button onClick={onDeploy} disabled={deployStatus === 'deploying'} className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            {deployStatus === 'deploying' ? 'Deploying...' : '🚀 Deploy Live'}
           </button>
         )}
       </div>
 
-      <div
-        style={{
-          marginTop: 20,
-          paddingTop: 16,
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-          display: 'flex',
-          gap: 16,
-          justifyContent: 'center',
-          fontSize: '.8rem',
-        }}
-      >
-        <Link href="/cms" style={{ color: '#818cf8', textDecoration: 'none' }}>
-          Open in CMS Dashboard →
-        </Link>
-        <span style={{ color: '#475569' }}>|</span>
-        <Link href="/" style={{ color: '#94a3b8', textDecoration: 'none' }}>
-          Return Home
-        </Link>
+      <div className="mt-6 pt-5 border-t border-white/[0.06] flex gap-6 justify-center text-xs">
+        <Link href="/cms" className="text-brand-400 no-underline hover:underline">Open in CMS →</Link>
+        <span className="text-slate-700">|</span>
+        <Link href="/" className="text-slate-500 no-underline hover:text-slate-300 transition-colors">Return Home</Link>
       </div>
     </div>
   );

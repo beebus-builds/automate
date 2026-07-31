@@ -29,9 +29,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: { isOpen: boolean;
         }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
-      }
+      if (!res.ok) throw new Error(data.error || 'Authentication failed');
       onAuthSuccess(data.user);
       onClose();
     } catch (err: any) {
@@ -42,68 +40,49 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: { isOpen: boolean;
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
-      <div style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 24, padding: 36, width: '100%', maxWidth: 420, boxShadow: '0 25px 60px rgba(0,0,0,0.6)', color: '#fff' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0 }}>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} role="dialog" aria-modal="true" aria-label="Sign in">
+      <div className="glass-strong rounded-3xl p-8 w-full max-w-md shadow-2xl shadow-black/50 scale-in" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-extrabold text-white">
             {mode === 'login' ? 'Welcome Back 👋' : 'Create Account 🚀'}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-colors" aria-label="Close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
 
         {error && (
-          <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, color: '#fca5a5', fontSize: '.85rem', marginBottom: 16 }}>
+          <div className="px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-sm mb-5">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {mode === 'register' && (
             <div>
-              <label style={{ display: 'block', fontSize: '.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: 6 }}>Full Name</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Sarah Johnson"
-                style={{ width: '100%', padding: '12px 16px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff', fontSize: '.95rem', outline: 'none' }}
-              />
+              <label className="block text-xs font-semibold text-slate-400 mb-1.5">Full Name</label>
+              <input type="text" required value={name} onChange={e => setName(e.target.value)} placeholder="Sarah Johnson" className="w-full px-4 py-3 bg-surface-800 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-600" />
             </div>
           )}
           <div>
-            <label style={{ display: 'block', fontSize: '.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: 6 }}>Email Address</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="teacher@school.edu"
-              style={{ width: '100%', padding: '12px 16px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff', fontSize: '.95rem', outline: 'none' }}
-            />
+            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Email Address</label>
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="teacher@school.edu" className="w-full px-4 py-3 bg-surface-800 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-600" />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: '.8rem', fontWeight: 600, color: '#94a3b8', marginBottom: 6 }}>Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              style={{ width: '100%', padding: '12px 16px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff', fontSize: '.95rem', outline: 'none' }}
-            />
+            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Password</label>
+            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-3 bg-surface-800 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-600" />
           </div>
 
-          <button type="submit" disabled={loading} style={{ width: '100%', padding: 14, marginTop: 8, background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', boxShadow: '0 4px 16px rgba(99,102,241,0.4)' }}>
-            {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Register Account'}
+          <button type="submit" disabled={loading} className="w-full py-3.5 mt-1 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+            {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: '.85rem', color: '#94a3b8' }}>
+        <div className="text-center mt-5 text-sm text-slate-500">
           {mode === 'login' ? (
-            <span>Don't have an account? <button onClick={() => setMode('register')} style={{ background: 'none', border: 'none', color: '#818cf8', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>Register</button></span>
+            <span>Don&apos;t have an account? <button onClick={() => setMode('register')} className="bg-none border-none text-brand-400 font-semibold cursor-pointer hover:underline">Register</button></span>
           ) : (
-            <span>Already have an account? <button onClick={() => setMode('login')} style={{ background: 'none', border: 'none', color: '#818cf8', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>Sign In</button></span>
+            <span>Already have an account? <button onClick={() => setMode('login')} className="bg-none border-none text-brand-400 font-semibold cursor-pointer hover:underline">Sign In</button></span>
           )}
         </div>
       </div>

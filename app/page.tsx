@@ -18,130 +18,120 @@ export default function HomePage() {
   }, []);
 
   const features = [
-    { title: 'Chat Builder', desc: 'Answer a few questions and get a complete portfolio site in minutes.' },
-    { title: '8 Themes', desc: 'Pick from curated color schemes and font pairings. Switch anytime.' },
-    { title: 'ZIP Export', desc: 'Download a standalone HTML/CSS/JS bundle. Host anywhere.' },
-    { title: 'One-Click Deploy', desc: 'Push live to Vercel with your own URL instantly.' },
+    { title: 'Chat Builder', desc: 'Answer a few questions and get a complete portfolio site in minutes.', icon: '💬' },
+    { title: '1,000+ Themes', desc: 'Curated color schemes & font pairings. Switch anytime — from minimal to bold.', icon: '🎨' },
+    { title: 'ZIP Export', desc: 'Download a standalone HTML/CSS/JS bundle. Host anywhere — no server needed.', icon: '📦' },
+    { title: 'One-Click Deploy', desc: 'Push live to Vercel with your own URL instantly.', icon: '🚀' },
   ];
 
   const steps = [
-    { n: '01', title: 'Tell us about yourself', desc: 'Name, subject, experience, bio.' },
-    { n: '02', title: 'Pick a theme', desc: 'Choose from 8 themes and preview live.' },
-    { n: '03', title: 'Publish or download', desc: 'Deploy to Vercel or grab a ZIP.' },
+    { n: '01', title: 'Tell us about yourself', desc: 'Name, subject, experience, bio — all in natural chat.', icon: '📝' },
+    { n: '02', title: 'Pick a theme', desc: 'Choose from 1,000+ themes and preview live.', icon: '🎯' },
+    { n: '03', title: 'Publish or download', desc: 'Deploy to Vercel or grab a standalone ZIP.', icon: '📤' },
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0d14', color: '#e2e8f0', fontFamily: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' }}>
-      <style>{`
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .anim { animation: fadeUp 0.6s ease both; }
-        .a1 { animation-delay: 0.1s; }
-        .a2 { animation-delay: 0.2s; }
-        .a3 { animation-delay: 0.3s; }
-        .a4 { animation-delay: 0.4s; }
-      `}</style>
+    <div className="min-h-screen bg-surface-950 text-slate-200 font-sans">
+      <div className="ambient-glow top-[-20%] left-[-10%] w-[600px] h-[600px] bg-brand-500" />
+      <div className="ambient-glow bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-purple-500" />
 
-      <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        background: scrolled ? 'rgba(10,13,20,0.9)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(20px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.06)' : '1px solid transparent',
-        transition: 'all 0.3s ease',
-      }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <Logo size={30} />
-            <span style={{ fontWeight: 800, fontSize: '1rem', color: '#fff', letterSpacing: '-0.3px' }}>TeacherFolio</span>
+      <header className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled ? 'glass-strong' : 'bg-transparent'}`}>
+        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 no-underline text-white">
+            <Logo size={28} />
+            <span className="font-extrabold text-base tracking-tight">TeacherFolio</span>
           </Link>
-          <nav style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <Link href="/build" style={{ padding: '6px 14px', color: '#94a3b8', textDecoration: 'none', fontSize: '.85rem', fontWeight: 500, borderRadius: 8 }}>Build</Link>
-            <Link href="/cms" style={{ padding: '6px 14px', color: '#94a3b8', textDecoration: 'none', fontSize: '.85rem', fontWeight: 500, borderRadius: 8 }}>CMS</Link>
+          <nav className="flex gap-1.5 items-center">
+            <Link href="/build" className="px-3.5 py-1.5 text-slate-400 no-underline text-sm font-medium rounded-lg hover:text-white hover:bg-white/5 transition-colors">Build</Link>
+            <Link href="/cms" className="px-3.5 py-1.5 text-slate-400 no-underline text-sm font-medium rounded-lg hover:text-white hover:bg-white/5 transition-colors">CMS</Link>
             {user ? (
-              <span style={{ fontSize: '.82rem', color: '#a5b4fc', fontWeight: 600, padding: '6px 14px', background: 'rgba(99,102,241,0.12)', borderRadius: 8 }}>{user.name}</span>
+              <span className="text-xs font-semibold text-brand-300 px-3 py-1.5 bg-brand-500/10 rounded-lg">{user.name}</span>
             ) : (
-              <button onClick={() => setIsAuthOpen(true)} style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.05)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: '.82rem', fontWeight: 600, cursor: 'pointer' }}>Sign In</button>
+              <button onClick={() => setIsAuthOpen(true)} className="px-4 py-1.5 bg-white/5 text-slate-200 border border-white/10 rounded-lg text-sm font-semibold hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer">Sign In</button>
             )}
           </nav>
         </div>
       </header>
 
-      <section style={{ padding: '140px 24px 80px', textAlign: 'center', maxWidth: 750, margin: '0 auto' }}>
-        <div style={{ padding: '4px 14px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 999, fontSize: '.78rem', fontWeight: 600, color: '#a5b4fc', marginBottom: 28, display: 'inline-block' }} className="anim a1">
+      <section className="pt-[180px] pb-[80px] px-6 max-w-3xl mx-auto text-center relative z-10">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-brand-500/10 border border-brand-500/20 rounded-full text-xs font-semibold text-brand-300 mb-7 animate-fade-up">
           Teacher Portfolio Builder
         </div>
-        <h1 style={{ fontSize: 'clamp(2.2rem, 5vw, 3.5rem)', fontWeight: 900, color: '#fff', lineHeight: 1.1, letterSpacing: '-1.5px', marginBottom: 18 }} className="anim a2">
+        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-[-2px] mb-5 animate-fade-up animation-delay-100">
           Your teaching website.<br />
-          <span style={{ background: 'linear-gradient(135deg,#818cf8,#c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Ready in minutes.</span>
+          <span className="bg-gradient-to-br from-brand-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Ready in minutes.</span>
         </h1>
-        <p style={{ fontSize: '1.05rem', color: '#94a3b8', lineHeight: 1.7, maxWidth: 540, margin: '0 auto 32px' }} className="anim a3">
+        <p className="text-base text-slate-400 leading-relaxed max-w-lg mx-auto mb-8 animate-fade-up animation-delay-200">
           No coding required. Answer a few questions and get a standalone portfolio site you can download or publish live.
         </p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }} className="anim a4">
-          <Link href="/build" style={{ padding: '14px 32px', background: 'linear-gradient(135deg,#6366f1,#7c3aed)', color: '#fff', borderRadius: 12, fontWeight: 700, textDecoration: 'none', fontSize: '.95rem', boxShadow: '0 8px 24px rgba(99,102,241,0.35)' }}>
+        <div className="flex gap-3 justify-center flex-wrap animate-fade-up animation-delay-300">
+          <Link href="/build" className="inline-flex items-center gap-2 px-7 py-3.5 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/30 hover:shadow-brand-500/50 hover:-translate-y-0.5 transition-all no-underline">
             Start Building
           </Link>
-          <Link href="/cms" style={{ padding: '14px 32px', color: '#e2e8f0', borderRadius: 12, fontWeight: 600, textDecoration: 'none', fontSize: '.95rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <Link href="/cms" className="inline-flex items-center gap-2 px-7 py-3.5 text-slate-200 rounded-xl font-semibold text-sm border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/20 transition-all no-underline">
             Explore CMS
           </Link>
         </div>
       </section>
 
-      <section style={{ padding: '80px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <span style={{ fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#818cf8', padding: '3px 12px', background: 'rgba(99,102,241,0.1)', borderRadius: 999 }}>How it works</span>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', marginTop: 10, letterSpacing: '-0.5px' }}>Three simple steps</h2>
+      <section className="py-[72px] px-6 border-t border-white/[0.04] relative z-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="inline-block text-[0.65rem] font-bold uppercase tracking-[1.5px] text-brand-400 px-3 py-1 bg-brand-500/10 rounded-full mb-4">How it works</span>
+            <h2 className="text-2xl font-extrabold text-white tracking-[-0.5px]">Three simple steps</h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {steps.map((s, i) => (
-              <div key={i} style={{ background: 'rgba(15,23,42,0.4)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 16, padding: '28px 24px' }}>
-                <span style={{ fontSize: '.7rem', fontWeight: 800, color: '#818cf8', letterSpacing: '1px' }}>{s.n}</span>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: '8px 0 6px' }}>{s.title}</h3>
-                <p style={{ fontSize: '.85rem', color: '#64748b', lineHeight: 1.6, margin: 0 }}>{s.desc}</p>
+              <div key={i} className="glass rounded-2xl p-7 hover:bg-white/[0.04] transition-colors group animate-fade-up" style={{ animationDelay: `${0.1 + i * 0.1}s` }}>
+                <span className="text-2xl mb-3 block">{s.icon}</span>
+                <span className="text-[0.65rem] font-bold text-brand-400 tracking-[1px]">{s.n}</span>
+                <h3 className="text-sm font-bold text-white mt-2 mb-1.5">{s.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section style={{ padding: '80px 24px', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <span style={{ fontSize: '.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#818cf8', padding: '3px 12px', background: 'rgba(99,102,241,0.1)', borderRadius: 999 }}>Features</span>
-            <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', marginTop: 10, letterSpacing: '-0.5px' }}>Everything you need</h2>
+      <section className="py-[72px] px-6 border-t border-white/[0.04] relative z-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <span className="inline-block text-[0.65rem] font-bold uppercase tracking-[1.5px] text-brand-400 px-3 py-1 bg-brand-500/10 rounded-full mb-4">Features</span>
+            <h2 className="text-2xl font-extrabold text-white tracking-[-0.5px]">Everything you need</h2>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {features.map((f, i) => (
-              <div key={i} style={{ background: 'rgba(15,23,42,0.3)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 14, padding: '22px 20px' }}>
-                <h3 style={{ fontSize: '.95rem', fontWeight: 700, color: '#fff', margin: '0 0 6px' }}>{f.title}</h3>
-                <p style={{ fontSize: '.82rem', color: '#64748b', margin: 0, lineHeight: 1.6 }}>{f.desc}</p>
+              <div key={i} className="glass rounded-2xl p-6 hover:bg-white/[0.04] transition-colors group animate-fade-up" style={{ animationDelay: `${0.15 + i * 0.08}s` }}>
+                <span className="text-2xl mb-3 block group-hover:scale-110 transition-transform">{f.icon}</span>
+                <h3 className="text-sm font-bold text-white mb-1.5">{f.title}</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section style={{ padding: '80px 24px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 500, margin: '0 auto' }}>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', marginBottom: 12 }}>Ready to build yours?</h2>
-          <p style={{ fontSize: '.9rem', color: '#64748b', marginBottom: 28, lineHeight: 1.6 }}>Free to start. No credit card required.</p>
-          <Link href="/build" style={{ padding: '14px 36px', background: 'linear-gradient(135deg,#6366f1,#7c3aed)', color: '#fff', borderRadius: 12, fontWeight: 700, textDecoration: 'none', fontSize: '1rem', boxShadow: '0 8px 24px rgba(99,102,241,0.35)', display: 'inline-block' }}>
+      <section className="py-[80px] px-6 text-center relative z-10">
+        <div className="max-w-md mx-auto">
+          <h2 className="text-2xl font-extrabold text-white tracking-[-0.5px] mb-3">Ready to build yours?</h2>
+          <p className="text-sm text-slate-500 mb-8 leading-relaxed">Free to start. No credit card required.</p>
+          <Link href="/build" className="inline-flex items-center gap-2 px-9 py-4 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/30 hover:shadow-brand-500/50 hover:-translate-y-0.5 transition-all no-underline">
             Get Started
           </Link>
         </div>
       </section>
 
-      <footer style={{ borderTop: '1px solid rgba(255,255,255,0.04)', padding: '24px 48px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Logo size={20} />
-            <span style={{ fontSize: '.82rem', color: '#475569', fontWeight: 600 }}>TeacherFolio</span>
+      <footer className="border-t border-white/[0.04] px-6 py-5 relative z-10">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <Logo size={18} />
+            <span className="text-xs text-slate-600 font-semibold">TeacherFolio</span>
           </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <Link href="/build" style={{ fontSize: '.8rem', color: '#64748b', textDecoration: 'none' }}>Build</Link>
-            <Link href="/cms" style={{ fontSize: '.8rem', color: '#64748b', textDecoration: 'none' }}>CMS</Link>
+          <div className="flex gap-5">
+            <Link href="/build" className="text-xs text-slate-600 no-underline hover:text-slate-400 transition-colors">Build</Link>
+            <Link href="/cms" className="text-xs text-slate-600 no-underline hover:text-slate-400 transition-colors">CMS</Link>
           </div>
-          <p style={{ fontSize: '.78rem', color: '#475569', margin: 0 }}>&copy; 2026 TeacherFolio</p>
+          <p className="text-xs text-slate-700 m-0">&copy; 2026 TeacherFolio</p>
         </div>
       </footer>
 

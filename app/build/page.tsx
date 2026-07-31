@@ -178,28 +178,29 @@ export default function BuildPage() {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#090d16', color: '#f8fafc', fontFamily: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' }}>
-      <header style={{ background: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '14px 28px', display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: '#fff' }}><Logo size={32} /><span style={{ fontWeight: 800, fontSize: '1.05rem' }}>TeacherFolio</span></Link>
-        <div style={{ height: 16, width: 1, background: 'rgba(255,255,255,0.15)' }} />
-        <Link href="/" style={{ fontSize: '.85rem', color: '#94a3b8', textDecoration: 'none', fontWeight: 500 }}>← Home</Link>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: '.8rem', color: '#a5b4fc', fontWeight: 600 }}>👤 {user.name}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: 240 }}>
-            <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progressPct}%`, background: 'linear-gradient(90deg, #6366f1, #a855f7)', borderRadius: 999, transition: 'width 0.3s ease' }} />
-            </div>
-            <span style={{ fontSize: '.75rem', fontWeight: 700, color: '#a5b4fc', minWidth: 32 }}>{Math.round(progressPct)}%</span>
+    <div className="h-screen flex flex-col bg-surface-950 text-slate-200 font-sans">
+      <header className="glass-strong border-b border-white/[0.06] px-6 py-3.5 flex items-center gap-4 flex-shrink-0">
+        <Link href="/" className="flex items-center gap-3 no-underline text-white">
+          <Logo size={30} />
+          <span className="font-extrabold text-sm">TeacherFolio</span>
+        </Link>
+        <div className="w-4 h-4 rounded-full bg-white/10" />
+        <Link href="/" className="text-xs text-slate-400 no-underline font-medium hover:text-slate-200 transition-colors">← Home</Link>
+        <div className="ml-auto flex items-center gap-4 max-w-[260px]">
+          <span className="text-xs font-semibold text-brand-300">👤 {user.name}</span>
+          <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-purple-500 transition-all duration-300" style={{ width: `${progressPct}%` }} />
           </div>
+          <span className="text-[0.7rem] font-bold text-brand-300 w-7">{Math.round(progressPct)}%</span>
         </div>
       </header>
 
-      <main style={{ flex: 1, overflowY: 'auto', padding: '32px 20px', scrollBehavior: 'smooth' }}>
-        <div style={{ maxWidth: 780, margin: '0 auto' }}>
+      <main className="flex-1 overflow-y-auto p-5 scroll-smooth">
+        <div className="max-w-[780px] mx-auto">
           {msgs.map((m, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 20 }}>
-              {m.role === 'bot' && <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 4px 12px rgba(99,102,241,0.3)' }}>🤖</div>}
-              <div style={{ maxWidth: '82%', padding: '14px 20px', borderRadius: m.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', background: m.role === 'user' ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#1e293b', color: '#fff', fontSize: '.95rem', lineHeight: 1.6, border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.08)', boxShadow: m.role === 'user' ? '0 4px 16px rgba(99,102,241,0.3)' : '0 2px 8px rgba(0,0,0,0.2)', whiteSpace: 'pre-wrap' }}>
+            <div key={i} className={`flex gap-3 mb-5 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {m.role === 'bot' && <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-500/25 text-sm">🤖</div>}
+              <div className={`max-w-[82%] px-5 py-3 rounded-2xl text-sm leading-relaxed border ${m.role === 'user' ? 'bg-gradient-to-br from-brand-500 to-indigo-600 text-white border-transparent shadow-lg shadow-brand-500/20' : 'bg-surface-700 text-white border border-white/[0.06] shadow-md shadow-black/20'}`} style={{ whiteSpace: 'pre-wrap' }}>
                 {m.role === 'bot' ? <div dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} /> : m.text}
               </div>
             </div>
@@ -207,52 +208,51 @@ export default function BuildPage() {
 
           {dataCollected && !built && (
             <>
-              {/* Category filter & search */}
-              <div style={{ marginLeft: 48, marginBottom: 16 }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 8px', color: '#f8fafc' }}>🎨 Choose from {allThemes.length} themes</h3>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                  <button onClick={() => { setThemeCategory(null); setThemeSearch(''); }} style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${!themeCategory ? '#6366f1' : 'rgba(255,255,255,0.15)'}`, background: !themeCategory ? 'rgba(99,102,241,0.2)' : 'transparent', color: !themeCategory ? '#a5b4fc' : '#94a3b8', cursor: 'pointer', fontSize: '.78rem', fontWeight: 600 }}>All</button>
+              <div className="ml-10 mb-5">
+                <h3 className="text-sm font-extrabold text-white mb-3">🎨 Choose from {allThemes.length} themes</h3>
+                <div className="flex gap-2 flex-wrap mb-3">
+                  <button onClick={() => { setThemeCategory(null); setThemeSearch(''); }} className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${!themeCategory ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30' : 'bg-transparent text-slate-400 border border-white/10 hover:border-white/20'}`}>All</button>
                   {categories.map(cat => (
-                    <button key={cat} onClick={() => setThemeCategory(themeCategory === cat ? null : cat)} style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${themeCategory === cat ? categoryColors[cat] || '#6366f1' : 'rgba(255,255,255,0.15)'}`, background: themeCategory === cat ? `${categoryColors[cat] || '#6366f1'}33` : 'transparent', color: themeCategory === cat ? '#fff' : '#94a3b8', cursor: 'pointer', fontSize: '.78rem', fontWeight: 600 }}>
+                    <button key={cat} onClick={() => setThemeCategory(themeCategory === cat ? null : cat)} className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${themeCategory === cat ? 'text-white border' : 'bg-transparent text-slate-400 border border-white/10 hover:border-white/20'}`} style={themeCategory === cat ? { borderColor: categoryColors[cat] || '#6366f1', background: `${categoryColors[cat] || '#6366f1'}30`, color: '#fff' } : {}}>
                       {cat}
                     </button>
                   ))}
                 </div>
-                <input value={themeSearch} onChange={e => setThemeSearch(e.target.value)} placeholder="Search themes..." style={{ width: '100%', padding: '10px 14px', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, color: '#fff', fontSize: '.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                <input value={themeSearch} onChange={e => setThemeSearch(e.target.value)} placeholder="Search themes..." className="w-full px-4 py-2.5 bg-surface-800 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-500" />
               </div>
 
-              {/* Theme grid */}
-              <div style={{ marginLeft: 48, marginBottom: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+              <div className="ml-10 mb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                 {displayedThemes.map(t => {
                   const isSelected = data.theme === t.id;
                   return (
-                    <button key={t.id} onClick={() => selectTheme(t.id)} style={{ padding: '10px 12px', border: `2px solid ${isSelected ? '#818cf8' : 'rgba(255,255,255,0.08)'}`, borderRadius: 12, background: isSelected ? 'rgba(99,102,241,0.2)' : '#1e293b', color: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: '.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s' }}>
-                      <span style={{ width: 16, height: 16, borderRadius: 4, background: `linear-gradient(135deg, ${t.colors.primary}, ${t.colors.accent})`, flexShrink: 0 }} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                    <button key={t.id} onClick={() => selectTheme(t.id)} className={`p-3 rounded-xl text-left transition-all duration-150 hover:scale-[1.02] ${isSelected ? 'ring-2 ring-brand-400 shadow-lg shadow-brand-500/20' : 'border border-white/[0.06]'}`} style={{ background: isSelected ? 'rgba(99,102,241,0.15)' : '#1e293b' }}>
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-4 h-4 rounded flex-shrink-0" style={{ background: `linear-gradient(135deg, ${t.colors.primary}, ${t.colors.accent})` }} />
+                        <span className="text-xs font-semibold truncate">{t.name}</span>
+                      </div>
                     </button>
                   );
                 })}
               </div>
               {filteredThemes.length > 30 && !showAllThemes && (
-                <button onClick={() => setShowAllThemes(true)} style={{ marginLeft: 48, marginBottom: 16, padding: '8px 16px', background: 'transparent', color: '#818cf8', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 8, cursor: 'pointer', fontSize: '.82rem', fontWeight: 600 }}>
+                <button onClick={() => setShowAllThemes(true)} className="ml-10 mb-4 px-4 py-2 bg-transparent text-brand-400 border border-brand-400/30 rounded-lg text-xs font-semibold hover:bg-brand-500/10 transition-colors">
                   Show all {filteredThemes.length} themes →
                 </button>
               )}
 
-              {/* Summary & Generate */}
-              <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 24, marginTop: 16, marginLeft: 48 }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0 0 16px', color: '#fff' }}>📋 Portfolio Summary</h3>
+              <div className="glass rounded-2xl p-6 mt-4 ml-10">
+                <h3 className="text-sm font-extrabold text-white mb-4">📋 Portfolio Summary</h3>
                 {(() => {
                   const sel = allThemes.find(t => t.id === data.theme);
                   const sum = getSummary({ ...data, theme: sel?.name || data.theme || 'Modern' }, [{ id: sel?.id || '', label: sel?.name || data.theme || 'Modern' }]);
                   return sum.map(([label, value]) => (
-                    <div key={label} style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: '.85rem' }}>
-                      <span style={{ fontWeight: 600, color: '#818cf8', minWidth: 100, flexShrink: 0 }}>{label}</span>
-                      <span style={{ color: '#cbd5e1' }}>{value}</span>
+                    <div key={label} className="flex gap-3 py-2 border-b border-white/[0.04] text-sm">
+                      <span className="font-semibold text-brand-300 w-[100px] flex-shrink-0">{label}</span>
+                      <span className="text-slate-300">{value}</span>
                     </div>
                   ));
                 })()}
-                <button onClick={handleGenerate} disabled={building} style={{ width: '100%', padding: 14, marginTop: 20, background: building ? '#475569' : 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 800, fontSize: '1rem', cursor: building ? 'not-allowed' : 'pointer' }}>
+                <button onClick={handleGenerate} disabled={building} className="w-full py-3.5 mt-5 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                   {building ? 'Generating...' : '🚀 Generate My Website'}
                 </button>
               </div>
@@ -266,11 +266,11 @@ export default function BuildPage() {
       </main>
 
       {!dataCollected && (
-        <footer style={{ borderTop: '1px solid rgba(255,255,255,0.08)', background: '#0f172a', padding: '16px 24px', flexShrink: 0 }}>
-          <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <footer className="border-t border-white/[0.06] bg-surface-800 px-5 py-3 flex-shrink-0">
+          <div className="max-w-[720px] mx-auto flex gap-3 items-center">
             <CallPanel teacherName={data.name || 'Teacher'} />
-            <input ref={inputRef} value={inputVal} onChange={e => setInputVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSend(); }} placeholder="Type naturally — I'll figure out what you mean..." style={{ flex: 1, padding: '14px 20px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, color: '#fff', fontSize: '.95rem', outline: 'none' }} />
-            <button onClick={handleSend} style={{ padding: '14px 28px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#fff', border: 'none', borderRadius: 14, fontWeight: 700, cursor: 'pointer', fontSize: '.95rem', boxShadow: '0 4px 14px rgba(99,102,241,0.35)' }}>Send</button>
+            <input ref={inputRef} value={inputVal} onChange={e => setInputVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSend(); }} placeholder="Type naturally — I&apos;ll figure out what you mean..." className="flex-1 px-4 py-3 bg-surface-700 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-500" />
+            <button onClick={handleSend} className="px-7 py-3 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all">Send</button>
           </div>
         </footer>
       )}
