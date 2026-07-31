@@ -74,6 +74,7 @@ export function Preview() {
   return (
     <div className={'cms-preview' + (previewOpen ? ' open' : '')}>
       <div className="preview-toolbar">
+        <span className="text-[0.65rem] font-bold text-slate-500 uppercase tracking-wider mr-1">Preview</span>
         {['desktop', 'tablet', 'mobile'].map(d => (
           <button key={d} className={'device-btn' + (currentDevice === d ? ' active' : '')} onClick={() => setDevice(d)}>
             {d === 'desktop' ? '🖥 Desktop' : d === 'tablet' ? '📱 Tablet' : '📱 Mobile'}
