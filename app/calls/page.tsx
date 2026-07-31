@@ -88,11 +88,11 @@ export default function CallsPage() {
 
   if (activeCall) {
     return (
-      <div className="h-screen bg-black flex flex-col font-sans">
+      <div className="h-screen bg-surface-900 flex flex-col font-sans">
         <div className="flex-1 relative">
           <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-contain" />
-          <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-5 right-5 w-44 h-33 rounded-xl shadow-2xl" style={{ transform: 'scaleX(-1)' }} />
-          <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-black/50 backdrop-blur-sm rounded-full">
+          <video ref={localVideoRef} autoPlay playsInline muted className="absolute bottom-5 right-5 w-44 h-36 rounded-xl shadow-2xl" style={{ transform: 'scaleX(-1)' }} />
+          <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-surface-900/50 backdrop-blur-sm rounded-full">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-sm font-semibold text-white">{activeCall.teacherName}</span>
           </div>
