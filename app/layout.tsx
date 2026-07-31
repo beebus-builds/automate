@@ -30,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body suppressHydrationWarning className="bg-surface-950 text-slate-200 font-sans antialiased">
         <div className="noise-overlay" />
+        <div className="fixed inset-x-0 top-0 h-[2px] z-50 bg-gradient-to-r from-brand-500 via-purple-500 to-pink-500 opacity-60" />
         {children}
         <PwaRegister />
       </body>

@@ -122,18 +122,18 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t border-white/[0.04] px-6 py-5 relative z-10">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-2.5">
-            <Logo size={18} />
-            <span className="text-xs text-slate-600 font-semibold">TeacherFolio</span>
+           <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <Logo size={18} />
+              <span className="text-xs text-slate-500 font-semibold">TeacherFolio</span>
+            </div>
+            <div className="flex gap-5">
+              <Link href="/build" className="text-xs text-slate-500 no-underline hover:text-slate-300 transition-colors">Build</Link>
+              <Link href="/cms" className="text-xs text-slate-500 no-underline hover:text-slate-300 transition-colors">CMS</Link>
+            </div>
+            <p className="text-xs text-slate-600 m-0">&copy; 2026 TeacherFolio</p>
           </div>
-          <div className="flex gap-5">
-            <Link href="/build" className="text-xs text-slate-600 no-underline hover:text-slate-400 transition-colors">Build</Link>
-            <Link href="/cms" className="text-xs text-slate-600 no-underline hover:text-slate-400 transition-colors">CMS</Link>
-          </div>
-          <p className="text-xs text-slate-700 m-0">&copy; 2026 TeacherFolio</p>
-        </div>
-      </footer>
+        </footer>
 
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onAuthSuccess={(u) => setUser(u)} />
     </div>
