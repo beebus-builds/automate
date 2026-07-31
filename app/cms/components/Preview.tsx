@@ -1,5 +1,6 @@
 'use client';
 import { useCMS } from '../CMSContext';
+import { renderSection } from '@/lib/sections';
 
 function escHtml(s: string) { return s ? s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : ''; }
 
@@ -43,9 +44,12 @@ export function Preview() {
   const coursesHtml = (data.courses || []).map((co: any) => `<div style="padding:16px;border:1px solid rgba(255,255,255,0.06);border-radius:${rad};margin-bottom:8px;background:#1a1f2e"><div style="font-size:1.1rem;margin-bottom:4px">${escHtml(co.icon||'')}</div><strong>${escHtml(co.title||'')}</strong><p style="font-size:.75rem;color:#94a3b8;margin:2px 0">${escHtml(co.description||'')}</p><span style="font-size:.65rem;background:${rgba(tc.accent,.15)};color:${tc.accent};padding:2px 8px;border-radius:999px">${escHtml(co.level||'')}</span></div>`).join('');
   const pointsHtml = (p.points || []).map((pt: any) => `<div style="background:#1a1f2e;padding:12px;border-radius:${rad};border:1px solid rgba(255,255,255,0.06)"><strong>${escHtml(pt.title||'')}</strong><p style="font-size:.75rem;color:#94a3b8;margin-top:4px">${escHtml(pt.description||'')}</p></div>`).join('');
   const achievementsHtml = (data.achievements || []).map((ach: any) => `<div style="padding:16px;border:1px solid rgba(255,255,255,0.06);border-radius:${rad};margin-bottom:8px;background:#1a1f2e"><span style="font-size:.65rem;background:${rgba(tc.primary,.15)};color:${tc.primary};padding:2px 8px;border-radius:999px;font-weight:700">${escHtml(ach.year||'')}</span><strong style="display:block;margin-top:4px">${escHtml(ach.title||'')}</strong><p style="font-size:.75rem;color:#94a3b8">${escHtml(ach.description||'')}</p></div>`).join('');
+  const customHtml = (data.customSections || [])
+    .filter((cs: any) => Array.isArray(cs.blocks) && cs.blocks.length > 0)
+    .map((cs: any) => renderSection(cs)).join('');
 
   const previewDoc = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><style>
-    :root{--p:${tc.primary};--a:${tc.accent};--fh:${fp.h};--fb:${fp.b};--rd:${rad};--sh:${sh};--sp:${sp};--br:${btnR}}
+    :root{--p:${tc.primary};--a:${tc.accent};--color-primary:${tc.primary};--color-accent:${tc.accent};--fh:${fp.h};--fb:${fp.b};--rd:${rad};--sh:${sh};--sp:${sp};--br:${btnR}}
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:var(--fb);color:#f1f5f9;line-height:1.6;background:#0b0f1a}
     .container{max-width:900px;margin:0 auto;padding:0 20px}
@@ -58,6 +62,7 @@ export function Preview() {
     .stats{display:flex;justify-content:space-around;background:#1a1f2e;padding:14px;border-radius:var(--rd);border:1px solid rgba(255,255,255,0.06);margin-top:14px}
     .phil{display:grid;grid-template-columns:1fr 1fr;gap:10px}.foot{padding:16px 0;text-align:center;font-size:.75rem;color:#64748b;border-top:1px solid rgba(255,255,255,0.06);margin-top:24px}
     @media(max-width:600px){.phil{grid-template-columns:1fr}}
+    .reveal{opacity:1 !important;transform:none !important}
   </style></head><body>
   <div class="navbar"><div class="container"><span class="logo">${escHtml(s.title||'Portfolio')}</span></div></div>
   <section class="hero"><div class="container"><span style="font-size:.65rem;font-weight:700;color:var(--p);text-transform:uppercase;letter-spacing:.1em">${escHtml(h.tagline||'')}</span>
@@ -67,6 +72,7 @@ export function Preview() {
   <section class="section" style="background:#111827"><div class="container"><h2 class="section__title">Courses</h2>${coursesHtml}</div></section>
   <section class="section"><div class="container"><h2 class="section__title">Philosophy</h2><div style="background:#1a1f2e;padding:14px;border-left:4px solid var(--p);border-radius:0 var(--rd) var(--rd) 0;font-style:italic;font-size:.85rem;margin-bottom:16px">"${escHtml(p.quote||'')}"</div><div class="phil">${pointsHtml}</div></div></section>
   <section class="section" style="background:#111827"><div class="container"><h2 class="section__title">Achievements</h2>${achievementsHtml}</div></section>
+  ${customHtml}
   <section class="section"><div class="container"><h2 class="section__title">Get in Touch</h2><p style="font-size:.8rem;text-align:center;color:#94a3b8">${escHtml(c.email||'')} &bull; ${escHtml(c.phone||'')}</p></div></section>
   <footer class="foot"><p>&copy; ${new Date().getFullYear()} ${escHtml(s.title||'')}</p></footer>
   </body></html>`;

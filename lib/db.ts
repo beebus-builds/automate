@@ -572,6 +572,11 @@ function renderContact(c: any, e: any, variant: string): string {
 }
 
 function renderCustomSection(s: any, e: any): string {
+  // New block-based designer sections
+  if (s && Array.isArray(s.blocks)) {
+    const { renderSection } = require('./sections');
+    return renderSection(s);
+  }
   const alt = s.style === 'alt' ? ' section--alt' : '';
   const sectionId = s.id || 'custom';
   return `<section class="section${alt}" id="sec-${e(sectionId)}">

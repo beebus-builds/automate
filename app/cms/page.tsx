@@ -7,6 +7,7 @@ import { General, Hero, About, Contact } from './components/GeneralHeroAbout';
 import { Courses, Philosophy, Achievements, SEO } from './components/CoursesPhilAchSEO';
 import { Media } from './components/MediaTab';
 import { ThemeTab } from './components/ThemeTab';
+import { SectionsTab } from './components/SectionsTab';
 import { Preview } from './components/Preview';
 import { Logo } from '@/components/Logo';
 import { SkeletonCms } from '@/components/Skeleton';
@@ -22,6 +23,7 @@ const tabs = [
   { id: 'contact', label: 'Contact', icon: '📧' },
   { id: 'seo', label: 'SEO & Settings', icon: '🔍' },
   { id: 'media', label: 'Media', icon: '🖼' },
+  { id: 'sections', label: 'Sections', icon: '🧩' },
   { id: 'theme', label: 'Themes & Style', icon: '🎨' },
 ];
 
@@ -53,6 +55,7 @@ function CMSInner() {
       case 'contact': return <Contact />;
       case 'seo': return <SEO />;
       case 'media': return <Media />;
+      case 'sections': return <SectionsTab />;
       case 'theme': return <ThemeTab />;
       default: return <Dashboard />;
     }

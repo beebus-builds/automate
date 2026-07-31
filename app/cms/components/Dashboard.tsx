@@ -28,6 +28,7 @@ export function Dashboard({ onNavigate }: { onNavigate?: (tab: string) => void }
     { tab: 'courses', icon: '📖', label: 'Manage Courses', desc: 'Add/edit course offerings' },
     { tab: 'seo', icon: '🔍', label: 'SEO Settings', desc: 'Meta tags, analytics' },
     { tab: 'media', icon: '🖼', label: 'Media Library', desc: 'Upload and manage images' },
+    { tab: 'sections', icon: '🧩', label: 'Design Sections', desc: 'Custom sections & layouts' },
     { tab: 'theme', icon: '🎨', label: 'Themes & Style', desc: 'Customize appearance' },
   ];
   return (
