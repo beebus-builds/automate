@@ -29,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body suppressHydrationWarning className="bg-surface-950 text-slate-200 font-sans antialiased">
+        <div className="noise-overlay" />
         {children}
         <PwaRegister />
       </body>

@@ -48,17 +48,17 @@ function CMSInner() {
   const currentLabel = tabs.find(t => t.id === activeTab)?.label || 'Dashboard';
 
   if (loading) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#64748b' }}>Loading...</div>;
+    return <div className="flex items-center justify-center h-screen text-slate-400">Loading...</div>;
   }
 
   return (
     <div className="cms">
       <div className="cms-sidebar">
-        <div className="cms-sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="cms-sidebar-brand flex items-center gap-2.5">
           <Logo size={32} />
           <div>
-            <h1 style={{ margin: 0, fontSize: '1rem' }}>TeacherFolio</h1>
-            <p style={{ margin: 0, fontSize: '0.75rem' }}>CMS Dashboard</p>
+            <h1 className="m-0 text-base font-bold text-white">TeacherFolio</h1>
+            <p className="m-0 text-[0.65rem] text-slate-500">CMS Dashboard</p>
           </div>
         </div>
         <div className="cms-sidebar-nav">
@@ -69,9 +69,7 @@ function CMSInner() {
             </div>
           ))}
         </div>
-        <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
-          <div style={{ fontSize: '.65rem', color: '#475569' }}>v1.0 • Next.js</div>
-        </div>
+        <div className="p-3 border-t border-white/[0.08] text-[0.65rem] text-slate-600">v1.0 • Next.js</div>
       </div>
 
       <div className="cms-main">
@@ -84,7 +82,7 @@ function CMSInner() {
             <button className="cms-btn cms-btn--secondary" onClick={undo}>↩ Undo</button>
             <button className="cms-btn cms-btn--secondary" onClick={togglePreview}>👁 Preview</button>
             <button className="cms-btn cms-btn--primary" onClick={triggerBuild}>🚀 Build Site</button>
-            <a href="/site-preview" target="_blank" className="cms-btn cms-btn--secondary" style={{ textDecoration: 'none' }}>🌐 View Site</a>
+            <a href="/site-preview" target="_blank" className="cms-btn cms-btn--secondary no-underline">🌐 View Site</a>
           </div>
         </div>
 

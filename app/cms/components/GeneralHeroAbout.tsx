@@ -51,10 +51,10 @@ export function About() {
       </div>
       <div className="cms-section"><div className="cms-section__title">Statistics</div>
         {(a.stats || []).map((st: any, i: number) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-            <input className="cms-input" style={{ maxWidth: 80 }} value={st.number} onChange={e => handleStatChange(i, 'number', e.target.value)} placeholder="10" />
-            <input className="cms-input" style={{ maxWidth: 60 }} value={st.suffix} onChange={e => handleStatChange(i, 'suffix', e.target.value)} placeholder="+" />
-            <input className="cms-input" style={{ flex: 1 }} value={st.label} onChange={e => handleStatChange(i, 'label', e.target.value)} placeholder="Years Experience" />
+          <div key={i} className="flex gap-2 items-center mb-2">
+            <input className="cms-input max-w-[80px]" value={st.number} onChange={e => handleStatChange(i, 'number', e.target.value)} placeholder="10" />
+            <input className="cms-input max-w-[60px]" value={st.suffix} onChange={e => handleStatChange(i, 'suffix', e.target.value)} placeholder="+" />
+            <input className="cms-input flex-1" value={st.label} onChange={e => handleStatChange(i, 'label', e.target.value)} placeholder="Years Experience" />
             <button className="cms-btn cms-btn--danger cms-btn--small" onClick={() => removeStat(i)}>✕</button>
           </div>
         ))}

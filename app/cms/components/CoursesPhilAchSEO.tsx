@@ -15,9 +15,9 @@ export function Courses() {
   return (
     <div className="cms-panel"><div className="cms-panel__header"><h2>Courses</h2><p>Subjects you teach.</p></div>
       {courses.map((co: any, i: number) => (
-        <div key={i} className="cms-section" style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <strong style={{ fontSize: '.82rem' }}>Course {i + 1}</strong>
+        <div key={i} className="cms-section border border-white/10 rounded-lg p-3.5 mb-3">
+          <div className="flex justify-between mb-2">
+            <strong className="text-sm">Course {i + 1}</strong>
             <button className="cms-btn cms-btn--danger cms-btn--small" onClick={() => remove(i)}>✕ Remove</button>
           </div>
           <div className="form-group"><label>Icon (emoji)</label><Inp path={`courses[${i}].icon`} val={co.icon || ''} /></div>
@@ -50,9 +50,9 @@ export function Philosophy() {
       </div>
       <div className="cms-section"><div className="cms-section__title">Key Points</div>
         {pts.map((pt: any, i: number) => (
-          <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-            <input className="cms-input" style={{ flex: 1 }} value={pt.title} onChange={e => setPt(i, 'title', e.target.value)} placeholder="Title" />
-            <input className="cms-input" style={{ flex: 2 }} value={pt.description} onChange={e => setPt(i, 'description', e.target.value)} placeholder="Description" />
+          <div key={i} className="flex gap-2 mb-2 items-center">
+            <input className="cms-input flex-1" value={pt.title} onChange={e => setPt(i, 'title', e.target.value)} placeholder="Title" />
+            <input className="cms-input flex-[2]" value={pt.description} onChange={e => setPt(i, 'description', e.target.value)} placeholder="Description" />
             <button className="cms-btn cms-btn--danger cms-btn--small" onClick={() => removePt(i)}>✕</button>
           </div>
         ))}
@@ -75,9 +75,9 @@ export function Achievements() {
   return (
     <div className="cms-panel"><div className="cms-panel__header"><h2>Achievements</h2><p>Your notable accomplishments.</p></div>
       {achievements.map((ach: any, i: number) => (
-        <div key={i} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <strong style={{ fontSize: '.82rem' }}>Achievement {i + 1}</strong>
+        <div key={i} className="border border-white/10 rounded-lg p-3.5 mb-3">
+          <div className="flex justify-between mb-2">
+            <strong className="text-sm">Achievement {i + 1}</strong>
             <button className="cms-btn cms-btn--danger cms-btn--small" onClick={() => remove(i)}>✕ Remove</button>
           </div>
           <div className="form-group"><label>Year</label><Inp path={`achievements[${i}].year`} val={ach.year || ''} ph="2023" /></div>
@@ -96,7 +96,7 @@ export function SEO() {
   return (
     <div className="cms-panel"><div className="cms-panel__header"><h2>SEO &amp; Settings</h2><p>Optimize your site for search engines.</p></div>
       <div className="cms-section"><div className="cms-section__title">Meta Tags</div>
-        <div className="form-group"><label>Meta Title <span style={{ color: '#64748b', fontWeight: 400 }}>(overrides site title)</span></label><Inp path="seo.metaTitle" val={s.metaTitle || ''} ph="Teacher Name — Professional Portfolio" /></div>
+        <div className="form-group"><label>Meta Title <span className="text-slate-500 font-normal">(overrides site title)</span></label><Inp path="seo.metaTitle" val={s.metaTitle || ''} ph="Teacher Name — Professional Portfolio" /></div>
         <div className="form-group"><label>Meta Description</label><TA path="seo.metaDesc" val={s.metaDesc || ''} ph="A passionate educator with 10+ years..." /></div>
         <div className="form-group"><label>OG Image URL</label><Inp path="seo.ogImage" val={s.ogImage || ''} ph="https://example.com/og-image.jpg" /></div>
       </div>

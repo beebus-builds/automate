@@ -155,21 +155,21 @@ export default function BuildPage() {
 
   const progressPct = isComplete(data) ? 90 : Math.min(80, (Object.values(data).filter(v => v && (Array.isArray(v) ? v.length > 0 : true)).length / 8) * 80);
 
-  if (!authChecked) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#090d16', color: '#94a3b8' }}>Loading...</div>;
+  if (!authChecked) return <div className="h-screen flex items-center justify-center bg-surface-950 text-slate-400">Loading...</div>;
 
   if (!user) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#090d16', color: '#f8fafc', fontFamily: '-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' }}>
-        <header style={{ padding: '24px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', maxWidth: 1280, margin: '0 auto', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><Logo size={38} /><span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#fff' }}>TeacherFolio</span></div>
-          <Link href="/" style={{ fontSize: '.9rem', color: '#94a3b8', textDecoration: 'none' }}>← Return Home</Link>
+      <div className="min-h-screen flex flex-col bg-surface-950 text-slate-200 font-sans">
+        <header className="px-12 py-6 flex items-center justify-between max-w-[1280px] mx-auto w-full">
+          <div className="flex items-center gap-3"><Logo size={38} /><span className="font-extrabold text-xl text-white">TeacherFolio</span></div>
+          <Link href="/" className="text-sm text-slate-400 no-underline">← Return Home</Link>
         </header>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 24, padding: 48, maxWidth: 460, width: '100%', textAlign: 'center', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
-            <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>🔒</div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', margin: '0 0 12px' }}>Sign In Required</h1>
-            <p style={{ fontSize: '1rem', color: '#94a3b8', lineHeight: 1.6, marginBottom: 32 }}>To build your teacher portfolio, please sign in or create an account.</p>
-            <button onClick={() => setIsAuthOpen(true)} style={{ padding: '16px 24px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: '#fff', border: 'none', borderRadius: 14, fontWeight: 800, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 8px 24px rgba(99,102,241,0.4)' }}>Sign In or Register Now</button>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="bg-surface-700 border border-white/[0.08] rounded-3xl p-12 max-w-[460px] w-full text-center shadow-2xl">
+            <div className="text-[3.5rem] mb-4">🔒</div>
+            <h1 className="text-2xl font-black text-white mb-3">Sign In Required</h1>
+            <p className="text-base text-slate-400 leading-relaxed mb-8">To build your teacher portfolio, please sign in or create an account.</p>
+            <button onClick={() => setIsAuthOpen(true)} className="px-6 py-4 bg-gradient-to-br from-brand-500 to-indigo-600 text-white border-none rounded-2xl font-bold text-sm cursor-pointer shadow-xl shadow-brand-500/40">Sign In or Register Now</button>
           </div>
         </div>
         <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onAuthSuccess={u => setUser(u)} />
@@ -200,7 +200,7 @@ export default function BuildPage() {
           {msgs.map((m, i) => (
             <div key={i} className={`flex gap-3 mb-5 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {m.role === 'bot' && <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-500/25 text-sm">🤖</div>}
-              <div className={`max-w-[82%] px-5 py-3 rounded-2xl text-sm leading-relaxed border ${m.role === 'user' ? 'bg-gradient-to-br from-brand-500 to-indigo-600 text-white border-transparent shadow-lg shadow-brand-500/20' : 'bg-surface-700 text-white border border-white/[0.06] shadow-md shadow-black/20'}`} style={{ whiteSpace: 'pre-wrap' }}>
+              <div className={`max-w-[82%] px-5 py-3 rounded-2xl text-sm leading-relaxed border whitespace-pre-wrap ${m.role === 'user' ? 'bg-gradient-to-br from-brand-500 to-indigo-600 text-white border-transparent shadow-lg shadow-brand-500/20' : 'bg-surface-700 text-white border border-white/[0.06] shadow-md shadow-black/20'}`}>
                 {m.role === 'bot' ? <div dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} /> : m.text}
               </div>
             </div>
@@ -213,7 +213,7 @@ export default function BuildPage() {
                 <div className="flex gap-2 flex-wrap mb-3">
                   <button onClick={() => { setThemeCategory(null); setThemeSearch(''); }} className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${!themeCategory ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30' : 'bg-transparent text-slate-400 border border-white/10 hover:border-white/20'}`}>All</button>
                   {categories.map(cat => (
-                    <button key={cat} onClick={() => setThemeCategory(themeCategory === cat ? null : cat)} className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${themeCategory === cat ? 'text-white border' : 'bg-transparent text-slate-400 border border-white/10 hover:border-white/20'}`} style={themeCategory === cat ? { borderColor: categoryColors[cat] || '#6366f1', background: `${categoryColors[cat] || '#6366f1'}30`, color: '#fff' } : {}}>
+                    <button key={cat} onClick={() => setThemeCategory(themeCategory === cat ? null : cat)} className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${themeCategory === cat ? 'text-white border' : 'bg-transparent text-slate-400 border border-white/10 hover:border-white/20'}`} style={{ borderColor: `${categoryColors[cat] || '#6366f1'}80`, background: `${categoryColors[cat] || '#6366f1'}1a`, color: themeCategory === cat ? '#fff' : undefined }}>
                       {cat}
                     </button>
                   ))}
@@ -225,7 +225,7 @@ export default function BuildPage() {
                 {displayedThemes.map(t => {
                   const isSelected = data.theme === t.id;
                   return (
-                    <button key={t.id} onClick={() => selectTheme(t.id)} className={`p-3 rounded-xl text-left transition-all duration-150 hover:scale-[1.02] ${isSelected ? 'ring-2 ring-brand-400 shadow-lg shadow-brand-500/20' : 'border border-white/[0.06]'}`} style={{ background: isSelected ? 'rgba(99,102,241,0.15)' : '#1e293b' }}>
+                    <button key={t.id} onClick={() => selectTheme(t.id)} className={`p-3 rounded-xl text-left transition-all duration-150 hover:scale-[1.02] ${isSelected ? 'ring-2 ring-brand-400 shadow-lg shadow-brand-500/20' : 'border border-white/[0.06]'}`} style={{ background: isSelected ? 'rgba(99,102,241,0.15)' : 'transparent' }}>
                       <div className="flex items-center gap-2.5">
                         <span className="w-4 h-4 rounded flex-shrink-0" style={{ background: `linear-gradient(135deg, ${t.colors.primary}, ${t.colors.accent})` }} />
                         <span className="text-xs font-semibold truncate">{t.name}</span>

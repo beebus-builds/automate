@@ -35,22 +35,32 @@ export function Dashboard() {
       <div className="cms-panel__header"><h2>Dashboard</h2><p>Overview of your teacher portfolio.</p></div>
       <div className="dashboard__stats">
         {stats.map((s, i) => (
-          <div key={i} className="stat-card"><span className="stat-card__number">{s.n}</span><span className="stat-card__label">{s.l}</span></div>
+          <div key={i} className="stat-card bg-surface-50 border border-white/10">
+            <span className="stat-card__number">{s.n}</span>
+            <span className="stat-card__label">{s.l}</span>
+          </div>
         ))}
       </div>
-      <div className="dashboard__card"><h3>Quick Actions</h3><div className="quick-actions">
-        {qa.map((q, i) => (
-          <a key={i} className="quick-action" href="#"><span className="quick-action__icon">{q.icon}</span><div className="quick-action__text"><strong>{q.label}</strong><span>{q.desc}</span></div></a>
-        ))}
-      </div></div>
-      <div className="dashboard__card"><h3>Getting Started</h3>
-        <ol style={{ fontSize: '.8rem', color: '#475569', paddingLeft: 20, margin: 0 }}>
-          <li style={{ marginBottom: 6 }}>Fill in your personal information under <strong>General</strong></li>
-          <li style={{ marginBottom: 6 }}>Write your <strong>Hero</strong> section and <strong>About</strong> page</li>
-          <li style={{ marginBottom: 6 }}>Add your <strong>Courses</strong>, <strong>Philosophy</strong>, and <strong>Achievements</strong></li>
-          <li style={{ marginBottom: 6 }}>Upload images to the <strong>Media Library</strong></li>
-          <li style={{ marginBottom: 6 }}>Pick a <strong>Theme</strong> and fine-tune styles</li>
-          <li style={{ marginBottom: 6 }}>Click <strong>Build Site</strong> to generate your portfolio</li>
+      <div className="dashboard__card bg-surface-50 border border-white/10">
+        <h3>Quick Actions</h3>
+        <div className="quick-actions">
+          {qa.map((q, i) => (
+            <a key={i} className="quick-action bg-surface-800/50 border border-white/5" href="#">
+              <span className="quick-action__icon">{q.icon}</span>
+              <div className="quick-action__text"><strong>{q.label}</strong><span>{q.desc}</span></div>
+            </a>
+          ))}
+        </div>
+      </div>
+      <div className="dashboard__card bg-surface-50 border border-white/10">
+        <h3>Getting Started</h3>
+        <ol className="text-sm text-slate-400 pl-5 m-0 space-y-1.5">
+          <li>Fill in your personal information under <strong className="text-slate-200">General</strong></li>
+          <li>Write your <strong className="text-slate-200">Hero</strong> section and <strong className="text-slate-200">About</strong> page</li>
+          <li>Add your <strong className="text-slate-200">Courses</strong>, <strong className="text-slate-200">Philosophy</strong>, and <strong className="text-slate-200">Achievements</strong></li>
+          <li>Upload images to the <strong className="text-slate-200">Media Library</strong></li>
+          <li>Pick a <strong className="text-slate-200">Theme</strong> and fine-tune styles</li>
+          <li>Click <strong className="text-slate-200">Build Site</strong> to generate your portfolio</li>
         </ol>
       </div>
     </div>

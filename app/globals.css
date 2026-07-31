@@ -139,6 +139,19 @@ body {
   z-index: 0;
 }
 
+/* ═══════════════════════════════════════════
+   Noise texture overlay (subtle grain)
+   ═══════════════════════════════════════════ */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.028;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
 /* CMS Layout */
 .cms {
   display: flex;
@@ -297,11 +310,12 @@ body {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%) translateY(20px);
-  background: #0f172a;
-  color: #fff;
+  background: #1e293b;
+  color: #e2e8f0;
   padding: 10px 20px;
   border-radius: 10px;
   font-size: .82rem;
+  border: 1px solid rgba(255,255,255,.08);
   opacity: 0;
   transition: all .3s;
   z-index: 9999;
