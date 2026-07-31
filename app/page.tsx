@@ -72,6 +72,34 @@ export default function HomePage() {
             Explore CMS
           </Link>
         </div>
+
+        <div className="mt-20 max-w-xl mx-auto text-left animate-fade-up animation-delay-300">
+          <div className="glass-strong rounded-3xl p-5 shadow-glow">
+            <div className="flex items-center gap-2 mb-4 px-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70" />
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70" />
+              <span className="ml-3 text-[0.65rem] font-semibold text-slate-500">teacherfolio — builder</span>
+            </div>
+            <div className="flex gap-2.5 mb-3.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center flex-shrink-0 text-xs shadow-md shadow-brand-500/20">🤖</div>
+              <div className="bg-surface-700 text-white px-4 py-2.5 rounded-2xl rounded-tl-md text-xs leading-relaxed border border-white/[0.06] max-w-[85%]">
+                Hi there! To start — <strong>what&apos;s your full name?</strong>
+              </div>
+            </div>
+            <div className="flex gap-2.5 mb-3.5 justify-end">
+              <div className="bg-gradient-to-br from-brand-500 to-indigo-600 text-white px-4 py-2.5 rounded-2xl rounded-tr-md text-xs border border-transparent shadow-lg shadow-brand-500/15">
+                Sarah Johnson — I teach math 🧮
+              </div>
+            </div>
+            <div className="flex gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center flex-shrink-0 text-xs shadow-md shadow-brand-500/20">🤖</div>
+              <div className="bg-surface-700 text-white px-4 py-2.5 rounded-2xl rounded-tl-md text-xs leading-relaxed border border-white/[0.06] max-w-[85%]">
+                <span className="text-brand-300 font-bold">Sarah Johnson</span> — lovely! What subject do you teach? <span className="inline-block w-2 h-3.5 bg-brand-400/70 ml-0.5 align-middle animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="py-[72px] px-6 border-t border-white/[0.04] relative z-10">
