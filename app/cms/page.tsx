@@ -9,6 +9,7 @@ import { Media } from './components/MediaTab';
 import { ThemeTab } from './components/ThemeTab';
 import { Preview } from './components/Preview';
 import { Logo } from '@/components/Logo';
+import { SkeletonCms } from '@/components/Skeleton';
 
 const tabs = [
   { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
@@ -25,12 +26,24 @@ const tabs = [
 ];
 
 function CMSInner() {
-  const { data, loading, changed, toast, undo, triggerBuild, togglePreview, save } = useCMS();
+  const { data, loading, changed, toast, undo, triggerBuild, togglePreview, save, showToast } = useCMS();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === 's') { e.preventDefault(); save(); }
+      else if (key === 'z') { e.preventDefault(); undo(); }
+      else if (key === 'p' && e.shiftKey) { e.preventDefault(); togglePreview(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [save, undo, togglePreview]);
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'dashboard': return <Dashboard />;
+      case 'dashboard': return <Dashboard onNavigate={setActiveTab} />;
       case 'general': return <General />;
       case 'hero': return <Hero />;
       case 'about': return <About />;
@@ -48,7 +61,7 @@ function CMSInner() {
   const currentLabel = tabs.find(t => t.id === activeTab)?.label || 'Dashboard';
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen text-slate-400">Loading...</div>;
+    return <SkeletonCms />;
   }
 
   return (
@@ -69,7 +82,14 @@ function CMSInner() {
             </div>
           ))}
         </div>
-        <div className="p-3 border-t border-white/[0.08] text-[0.65rem] text-slate-600">v1.0 • Next.js</div>
+        <div className="p-3 border-t border-white/[0.08] text-[0.65rem] text-slate-500 flex flex-col gap-1.5">
+          <div className="text-slate-600">v1.0 • Next.js</div>
+          <div className="flex flex-wrap gap-1.5 text-[0.6rem] text-slate-600">
+            <span className="px-1.5 py-0.5 border border-white/10 rounded">⌘S save</span>
+            <span className="px-1.5 py-0.5 border border-white/10 rounded">⌘Z undo</span>
+            <span className="px-1.5 py-0.5 border border-white/10 rounded">⇧⌘P preview</span>
+          </div>
+        </div>
       </div>
 
       <div className="cms-main">
@@ -94,7 +114,12 @@ function CMSInner() {
         </div>
       </div>
 
-      <div className={'toast' + (toast ? ' toast--visible' : '')}>{toast}</div>
+      <div className={'toast' + (toast ? ' toast--visible' : '')}>
+        <span className="toast__icon">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+        {toast}
+      </div>
     </div>
   );
 }

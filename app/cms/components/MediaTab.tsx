@@ -36,7 +36,11 @@ export function Media() {
       </div>
       <div className="media-grid">
         {images.length === 0 ? (
-          <div className="media-empty"><p>No images yet.</p></div>
+          <div className="media-empty">
+            <span className="media-empty__icon">🖼️</span>
+            <h3>No images yet</h3>
+            <p>Upload your first image to use in your portfolio.</p>
+          </div>
         ) : images.map((img: any) => (
           <div key={img.id} className="media-item" onClick={() => copyUrl(img.url)} title="Click to copy URL">
             <img src={img.url} alt={img.original_name} />

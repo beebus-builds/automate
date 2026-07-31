@@ -8,6 +8,7 @@ import { BuildSuccess } from '@/components/chat/BuildSuccess';
 import { CallPanel } from '@/components/chat/CallPanel';
 import { parseMessage, generateResponse, getSummary, emptyData, TeacherData } from '@/lib/conversation';
 import { getAllThemes, getCategories, categoryColors, searchThemes, mapThemeToBuildData } from '@/lib/themes';
+import { SkeletonPage } from '@/components/Skeleton';
 
 const allThemes = getAllThemes();
 const categories = getCategories();
@@ -155,7 +156,7 @@ export default function BuildPage() {
 
   const progressPct = isComplete(data) ? 90 : Math.min(80, (Object.values(data).filter(v => v && (Array.isArray(v) ? v.length > 0 : true)).length / 8) * 80);
 
-  if (!authChecked) return <div className="h-screen flex items-center justify-center bg-surface-950 text-slate-400">Loading...</div>;
+  if (!authChecked) return <SkeletonPage />;
 
   if (!user) {
     return (

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/Logo';
 import { AuthModal } from '@/components/AuthModal';
+import { SkeletonCalls } from '@/components/Skeleton';
 
 const SIGNAL_URL = process.env.NEXT_PUBLIC_SIGNAL_URL || 'ws://localhost:8765/ws/signal';
 
@@ -70,7 +71,7 @@ export default function CallsPage() {
     setActiveCall(null);
   };
 
-  if (!authChecked) return <div className="h-screen flex items-center justify-center bg-surface-950 text-slate-500">Loading...</div>;
+  if (!authChecked) return <SkeletonCalls />;
 
   if (!user) {
     return (

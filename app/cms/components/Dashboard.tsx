@@ -13,7 +13,7 @@ export function TA({ path, val, ph }: { path: string; val: string; ph?: string }
   return <textarea className="cms-textarea" value={val} onChange={e => update(path, e.target.value)} placeholder={ph} />;
 }
 
-export function Dashboard() {
+export function Dashboard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { data } = useCMS();
   const a = data.about || {};
   const stats = [
@@ -45,10 +45,10 @@ export function Dashboard() {
         <h3>Quick Actions</h3>
         <div className="quick-actions">
           {qa.map((q, i) => (
-            <a key={i} className="quick-action bg-surface-800/50 border border-white/5" href="#">
+            <button key={i} onClick={() => onNavigate?.(q.tab)} className="quick-action bg-surface-800/50 border border-white/5 text-left w-full">
               <span className="quick-action__icon">{q.icon}</span>
               <div className="quick-action__text"><strong>{q.label}</strong><span>{q.desc}</span></div>
-            </a>
+            </button>
           ))}
         </div>
       </div>
