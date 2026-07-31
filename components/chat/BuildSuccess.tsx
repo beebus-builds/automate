@@ -14,7 +14,7 @@ interface Props {
 export function BuildSuccess({ name, downloadUrl, deployUrl, publicUrl, deployStatus, onDeploy }: Props) {
   const showUrl = deployUrl || publicUrl;
   return (
-    <div className="glass rounded-3xl p-8 mt-6 text-center shadow-glow" style={{ animation: 'slideUp 0.4s ease both' }}>
+    <div className="glass rounded-3xl p-8 mt-6 text-center shadow-glow animate-slide-up">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-2xl mx-auto mb-5 shadow-glow">
         ✅
       </div>

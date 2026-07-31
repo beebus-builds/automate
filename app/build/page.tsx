@@ -42,6 +42,7 @@ export default function BuildPage() {
   const [themeSearch, setThemeSearch] = useState('');
   const [themeCategory, setThemeCategory] = useState<string | null>(null);
   const [showAllThemes, setShowAllThemes] = useState(false);
+  const [botTyping, setBotTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -83,8 +84,12 @@ export default function BuildPage() {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
   useEffect(() => { if (user) inputRef.current?.focus(); }, [user, dataCollected]);
 
-  const addBot = (text: string) => setMsgs(p => [...p, { role: 'bot', text }]);
+  const addBot = (text: string) => { setBotTyping(false); setMsgs(p => [...p, { role: 'bot', text }]); };
   const addUser = (text: string) => setMsgs(p => [...p, { role: 'user', text }]);
+  const replyWithTyping = (text: string, delay = 700) => {
+    setBotTyping(true);
+    setTimeout(() => addBot(text), delay);
+  };
 
   const handleSend = () => {
     const val = inputVal.trim();
@@ -97,9 +102,9 @@ export default function BuildPage() {
     setData(updated);
     if (isComplete(updated)) {
       setDataCollected(true);
-      setTimeout(() => addBot('Great — I have everything I need! Browse **1000+ themes** below and pick the one you like:'), 300);
+      replyWithTyping('Great — I have everything I need! Browse **1000+ themes** below and pick the one you like:');
     } else {
-      setTimeout(() => addBot(generateResponse(updated, extracted)), 250);
+      replyWithTyping(generateResponse(updated, extracted));
     }
   };
 
@@ -108,7 +113,7 @@ export default function BuildPage() {
     if (!theme) return;
     addUser(`Selected: ${theme.name}`);
     setData(p => ({ ...p, theme: id }));
-    setTimeout(() => addBot(`**${theme.name}** — great choice! Hit the button below to generate your site.`), 400);
+    replyWithTyping(`**${theme.name}** — great choice! Hit the button below to generate your site.`);
   };
 
   const handleGenerate = async () => {
@@ -207,6 +212,17 @@ export default function BuildPage() {
             </div>
           ))}
 
+          {botTyping && !built && (
+            <div className="flex gap-3 mb-5 justify-start">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-500/25 text-sm">🤖</div>
+              <div className="bg-surface-700 text-white px-5 py-3 rounded-2xl border border-white/[0.06] shadow-md shadow-black/20 inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
+
           {dataCollected && !built && (
             <>
               <div className="ml-10 mb-5">
@@ -271,7 +287,7 @@ export default function BuildPage() {
           <div className="max-w-[720px] mx-auto flex gap-3 items-center">
             <CallPanel teacherName={data.name || 'Teacher'} />
             <input ref={inputRef} value={inputVal} onChange={e => setInputVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSend(); }} placeholder="Type naturally — I&apos;ll figure out what you mean..." className="flex-1 px-4 py-3 bg-surface-700 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-500" />
-            <button onClick={handleSend} className="px-7 py-3 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all">Send</button>
+            <button onClick={handleSend} disabled={botTyping || !inputVal.trim()} className="px-7 py-3 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0">Send</button>
           </div>
         </footer>
       )}

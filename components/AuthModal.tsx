@@ -73,8 +73,13 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: { isOpen: boolean;
             <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-3 bg-surface-800 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-600" />
           </div>
 
-          <button type="submit" disabled={loading} className="w-full py-3.5 mt-1 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-            {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+          <button type="submit" disabled={loading} className="w-full py-3.5 mt-1 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
+            {loading ? (
+              <>
+                <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                {mode === 'login' ? 'Signing in...' : 'Creating account...'}
+              </>
+            ) : mode === 'login' ? 'Sign In' : 'Create Account'}
           </button>
         </form>
 

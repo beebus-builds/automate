@@ -126,10 +126,13 @@ export default function CallsPage() {
         <p className="text-sm text-slate-500 mb-8">Keep this page open to receive incoming calls from teachers.</p>
 
         {calls.length === 0 && (
-          <div className="text-center py-16 text-slate-600">
-            <div className="text-5xl mb-4">📱</div>
-            <p className="text-sm">No incoming calls. Waiting for a teacher to reach out...</p>
-            <div className="mt-5 flex gap-2 justify-center">
+          <div className="glass rounded-3xl py-16 px-6 text-center animate-fade-up">
+            <div className="w-16 h-16 rounded-2xl bg-surface-800 border border-white/[0.06] flex items-center justify-center text-3xl mx-auto mb-5">
+              📱
+            </div>
+            <h2 className="text-sm font-bold text-white mb-2">No incoming calls</h2>
+            <p className="text-sm text-slate-500 mb-6">Keep this page open. When a teacher reaches out, the call will appear here.</p>
+            <div className="flex gap-2 justify-center">
               <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" />
               <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" style={{ animationDelay: '0.2s' }} />
               <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse" style={{ animationDelay: '0.4s' }} />
