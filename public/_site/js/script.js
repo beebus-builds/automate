@@ -1,17 +1,15 @@
 (function () {
   'use strict';
 
-  var header = document.getElementById('header');
+  var navbar = document.getElementById('navbar');
   var hamburger = document.getElementById('hamburger');
-  var nav = document.getElementById('nav');
-  var navLinks = document.querySelectorAll('.nav__link');
+  var nav = document.getElementById('navbarNav');
+  var navLinks = document.querySelectorAll('.navbar__link');
   var contactForm = document.getElementById('contactForm');
   var toast = document.getElementById('toast');
   var backToTop = document.getElementById('backToTop');
-  var cursorGlow = document.getElementById('cursorGlow');
 
   var ticking = false;
-  var navHeight = 72;
 
   function showToast(message) {
     toast.textContent = message;
@@ -27,10 +25,10 @@
       requestAnimationFrame(function () {
         var scrollY = window.scrollY || window.pageYOffset;
 
-        if (scrollY > 50) {
-          header.classList.add('header--scrolled');
+        if (scrollY > 60) {
+          navbar.classList.add('navbar--scrolled');
         } else {
-          header.classList.remove('header--scrolled');
+          navbar.classList.remove('navbar--scrolled');
         }
 
         if (scrollY > 400) {
@@ -48,7 +46,7 @@
 
   /* ---- Navigation ---- */
   hamburger.addEventListener('click', function () {
-    var isOpen = nav.classList.toggle('nav--open');
+    var isOpen = nav.classList.toggle('navbar__nav--open');
     hamburger.classList.toggle('active');
     hamburger.setAttribute('aria-expanded', isOpen);
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -56,7 +54,7 @@
 
   navLinks.forEach(function (link) {
     link.addEventListener('click', function () {
-      nav.classList.remove('nav--open');
+      nav.classList.remove('navbar__nav--open');
       hamburger.classList.remove('active');
       hamburger.setAttribute('aria-expanded', 'false');
       document.body.style.overflow = '';
@@ -65,10 +63,9 @@
 
   /* ---- Active nav link ---- */
   var sections = document.querySelectorAll('.section[id], .hero[id]');
-  var headerHeight = header.offsetHeight;
 
   function updateActiveLink() {
-    var scrollPos = window.scrollY + headerHeight + 80;
+    var scrollPos = window.scrollY + 100;
     var currentId = '';
 
     sections.forEach(function (section) {
@@ -95,8 +92,7 @@
       var targetId = this.getAttribute('href').slice(1);
       var target = document.getElementById(targetId);
       if (target) {
-        var top = target.offsetTop - headerHeight;
-        window.scrollTo({ top: top, behavior: 'smooth' });
+        window.scrollTo({ top: target.offsetTop - 80, behavior: 'smooth' });
       }
     });
   });
@@ -135,10 +131,7 @@
   });
 
   /* ---- Intersection observer for scroll reveals ---- */
-  var observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -60px 0px'
-  };
+  var observerOptions = { threshold: 0.1, rootMargin: '0px 0px -60px 0px' };
 
   var revealObserver = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
@@ -149,7 +142,12 @@
     });
   }, observerOptions);
 
-  document.querySelectorAll('.course-card, .achievement-card, .philosophy__point, .contact__info-card, .about__img-frame, .about__lead').forEach(function (el) {
+  document.querySelectorAll('.reveal').forEach(function (el) {
+    revealObserver.observe(el);
+  });
+
+  document.querySelectorAll('.course-card, .achievement-card, .philosophy__point').forEach(function (el, i) {
+    el.style.transitionDelay = (i * 0.08) + 's';
     el.classList.add('reveal');
     revealObserver.observe(el);
   });
@@ -159,25 +157,6 @@
     el.style.transitionDelay = (i * 0.1) + 's';
     revealObserver.observe(el);
   });
-
-  document.querySelectorAll('.course-card, .achievement-card, .philosophy__point').forEach(function (el, i) {
-    el.style.transitionDelay = (i * 0.08) + 's';
-  });
-
-  /* ---- Cursor glow effect ---- */
-  if (cursorGlow && window.innerWidth > 1024) {
-    document.addEventListener('mousemove', function (e) {
-      cursorGlow.style.left = e.clientX + 'px';
-      cursorGlow.style.top = e.clientY + 'px';
-      if (!cursorGlow.classList.contains('cursor-glow--visible')) {
-        cursorGlow.classList.add('cursor-glow--visible');
-      }
-    });
-
-    document.addEventListener('mouseleave', function () {
-      cursorGlow.classList.remove('cursor-glow--visible');
-    });
-  }
 
   /* ---- Hero parallax on mouse move ---- */
   var heroAvatar = document.querySelector('.hero__avatar');
@@ -199,9 +178,7 @@
 
     document.querySelector('.hero').addEventListener('mouseleave', function () {
       heroAvatar.style.transform = '';
-      heroRings.forEach(function (ring) {
-        ring.style.transform = '';
-      });
+      heroRings.forEach(function (ring) { ring.style.transform = ''; });
     });
   }
 

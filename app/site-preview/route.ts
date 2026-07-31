@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (fs.existsSync(indexPath)) {
-      const html = fs.readFileSync(indexPath, 'utf8');
+      let html = fs.readFileSync(indexPath, 'utf8');
+      html = html.replace('<head>', '<head><base href="/site-preview/">');
       return new NextResponse(html, {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',

@@ -3,46 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bibash Poudel — Educator Portfolio</title>
-  <meta name="description" content="I am good at teaching things.">
-  <meta property="og:title" content="Bibash Poudel — Educator Portfolio">
-  <meta property="og:description" content="I am good at teaching things.">
+  <title>Teacher 2 — Educator Portfolio</title>
+  <meta name="description" content="I love teaching">
+  <meta property="og:title" content="Teacher 2 — Educator Portfolio">
+  <meta property="og:description" content="I love teaching">
   <meta property="og:image" content="">
   <meta name="theme-color" content="#0284c7">
   
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>body.website-page { padding-top: 80px; }</style></head>
 <body class="layout-wide sec-bordered">
-  <div class="cursor-glow" id="cursorGlow"></div>
 
-  <header class="header" id="header">
-    <div class="container header__inner">
-      <a href="#home" class="logo">
-        <span class="logo__icon">BP</span>
-        <span class="logo__text">Bibash Poudel — Teacher Portfolio</span>
+  <!-- ===== NAVBAR ===== -->
+  <header class="navbar" id="navbar">
+    <div class="navbar__inner container">
+      <a href="#home" class="navbar__logo">
+        <span class="navbar__icon">T2</span>
+        <span class="navbar__text">Teacher 2 — Teacher Portfolio</span>
       </a>
-      <nav class="nav" id="nav">
-        <ul class="nav__list">
-          <li><a href="#home" class="nav__link active">Home</a></li>
-          <li><a href="#about" class="nav__link">About</a></li>
-          <li><a href="#courses" class="nav__link">Courses</a></li>
-          <li><a href="#philosophy" class="nav__link">Philosophy</a></li>
-          <li><a href="#achievements" class="nav__link">Achievements</a></li>
-          <li><a href="#contact" class="nav__link">Contact</a></li>
+      <nav class="navbar__nav" id="navbarNav">
+        <ul class="navbar__list">
+          <li><a href="#home" class="navbar__link active">Home</a></li>
+          <li><a href="#about" class="navbar__link">About</a></li>
+          <li><a href="#courses" class="navbar__link">Courses</a></li>
+          <li><a href="#philosophy" class="navbar__link">Philosophy</a></li>
+          <li><a href="#achievements" class="navbar__link">Achievements</a></li>
+          <li><a href="#contact" class="navbar__link">Contact</a></li>
         </ul>
       </nav>
-      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
-        <span></span>
-        <span></span>
-        <span></span>
+      <button class="navbar__hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
       </button>
     </div>
   </header>
 
   <main>
+    <!-- ===== HERO ===== -->
     <section class="hero" id="home">
       <div class="hero__bg">
         <div class="hero__shape hero__shape--1"></div>
@@ -50,100 +49,101 @@
         <div class="hero__shape hero__shape--3"></div>
       </div>
       <div class="container hero__inner">
-        <div class="hero__text">
+        <div class="hero__content">
           <div class="hero__badge">
             <span class="hero__badge-dot"></span>
-            I teach students from class 1 to class 10 of Government Schools of Nepal Portfolio
+            I teach from class 1 to class 10 Portfolio
           </div>
-          <h1 class="hero__title">Welcome to Bibash Poudel&#39;s Classroom</h1>
-          <p class="hero__desc">I am good at teaching things.</p>
+          <h1 class="hero__title">Welcome to Teacher 2&#39;s Classroom</h1>
+          <p class="hero__desc">I love teaching</p>
           <div class="hero__actions">
-            <a href="#contact" class="btn btn--primary">
-              <span>Get in Touch</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
+            <a href="#contact" class="btn btn--primary">Get in Touch</a>
             <a href="#about" class="btn btn--outline">Learn More</a>
           </div>
-          <div class="hero__scroll">
-            <span>Scroll</span>
-            <div class="hero__scroll-line"></div>
-          </div>
         </div>
-        <div class="hero__image">
+        <div class="hero__visual">
           <div class="hero__avatar">
-            <span class="hero__avatar-text">BP</span>
+            <span class="hero__avatar-text">T2</span>
           </div>
           <div class="hero__ring hero__ring--1"></div>
           <div class="hero__ring hero__ring--2"></div>
         </div>
       </div>
+      <div class="hero__scroll" onclick="document.getElementById('about').scrollIntoView({behavior:'smooth'})">
+        <span>Scroll</span>
+        <div class="hero__scroll-line"></div>
+      </div>
     </section>
 
+    <!-- ===== ABOUT ===== -->
     <section class="section" id="about">
       <div class="container">
-        <div class="section__header">
-          <span class="section__overline">About Me</span>
+        <div class="section__header reveal">
+          <span class="section__badge">About Me</span>
           <h2 class="section__title">Know the <span class="text-gradient">Educator</span></h2>
           <p class="section__subtitle">A glimpse into my journey, philosophy, and passion for teaching.</p>
         </div>
-        <div class="about__grid">
-          <div class="about__image">
-            <div class="about__img-frame">
-              <div class="about__img-placeholder">
+        <div class="about__grid reveal">
+          <div class="about__media">
+            <div class="about__frame">
+              <div class="about__placeholder">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <span>Your Photo</span>
+                <span>Photo</span>
               </div>
             </div>
           </div>
           <div class="about__content">
-            <p class="about__lead">I am good at teaching things.</p>
+            <p class="about__lead">I love teaching</p>
             <p>I believe every student possesses unique talents waiting to be unlocked.</p>
             <p>My instructional approach centers on curiosity, critical thinking, and mutual respect.</p>
             <div class="about__stats">
-              <div class="stat"><span class="stat__number">I have been teaching for 10 yeard+</span><span class="stat__label">Years Teaching</span></div><div class="stat"><span class="stat__number">300+</span><span class="stat__label">Students Mentored</span></div><div class="stat"><span class="stat__number">1</span><span class="stat__label">Courses Taught</span></div>
+              <div class="stat"><span class="stat__number">I have been teaching 10 years+</span><span class="stat__label">Years Teaching</span></div><div class="stat"><span class="stat__number">300+</span><span class="stat__label">Students Mentored</span></div><div class="stat"><span class="stat__number">1</span><span class="stat__label">Subjects Taught</span></div>
             </div>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- ===== COURSES ===== -->
     <section class="section section--alt" id="courses">
       <div class="container">
-        <div class="section__header">
-          <span class="section__overline">Courses</span>
+        <div class="section__header reveal">
+          <span class="section__badge">Courses</span>
           <h2 class="section__title">Subjects I <span class="text-gradient">Teach</span></h2>
           <p class="section__subtitle">A selection of courses I have taught and developed over my teaching career.</p>
         </div>
         <div class="courses__grid">
-          <div class="course-card"><div class="course-card__icon">📖</div><h3 class="course-card__title">Math</h3><p class="course-card__desc">Engaging math instruction tailored for student growth.</p><span class="course-card__level">All Levels</span></div>
+          <div class="course-card"><div class="course-card__icon">📖</div><h3 class="course-card__title">Math, Science, Social</h3><p class="course-card__desc">Engaging math, science, social instruction tailored for student growth.</p><span class="course-card__level">All Levels</span></div>
         </div>
       </div>
     </section>
 
+    <!-- ===== PHILOSOPHY ===== -->
     <section class="section" id="philosophy">
       <div class="container">
-        <div class="section__header">
-          <span class="section__overline">Philosophy</span>
+        <div class="section__header reveal">
+          <span class="section__badge">Philosophy</span>
           <h2 class="section__title">My Teaching <span class="text-gradient">Beliefs</span></h2>
           <p class="section__subtitle">The principles that guide every lesson I teach.</p>
         </div>
-        <div class="philosophy__content">
+        <div class="philosophy__content reveal">
           <blockquote class="philosophy__quote">
-            <div class="philosophy__quote-icon">"</div>
-            <p>I live by Live and Let Live</p>
+            <div class="philosophy__quote-mark">"</div>
+            <p>I live by no philosophy</p>
             <cite>— William Butler Yeats</cite>
           </blockquote>
-          <div class="philosophy__points">
+          <div class="philosophy__grid">
             <div class="philosophy__point"><h3>Student-Centered</h3><p>Tailoring lessons to accommodate diverse learning styles.</p></div><div class="philosophy__point"><h3>Active Engagement</h3><p>Encouraging hands-on problem solving and discussion.</p></div><div class="philosophy__point"><h3>Growth Mindset</h3><p>Instilling resilience and continuous learning habits.</p></div>
           </div>
         </div>
       </div>
     </section>
 
+    <!-- ===== ACHIEVEMENTS ===== -->
     <section class="section section--alt" id="achievements">
       <div class="container">
-        <div class="section__header">
-          <span class="section__overline">Achievements</span>
+        <div class="section__header reveal">
+          <span class="section__badge">Achievements</span>
           <h2 class="section__title">Milestones &amp; <span class="text-gradient">Recognition</span></h2>
           <p class="section__subtitle">Awards, certifications, and career highlights I am proud of.</p>
         </div>
@@ -153,44 +153,46 @@
       </div>
     </section>
 
+    <!-- ===== CONTACT ===== -->
     <section class="section" id="contact">
       <div class="container">
-        <div class="section__header">
-          <span class="section__overline">Contact</span>
+        <div class="section__header reveal">
+          <span class="section__badge">Contact</span>
           <h2 class="section__title">Let's <span class="text-gradient">Connect</span></h2>
           <p class="section__subtitle">Have a question or want to collaborate? I would love to hear from you.</p>
         </div>
-        <div class="contact__grid">
+        <div class="contact__grid reveal">
           <div class="contact__info">
-            <div class="contact__info-card">
-              <div class="contact__info-icon">
+            <div class="contact__card">
+              <div class="contact__card-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               </div>
               <div>
-                <h4>Email</h4>
-                <p>poudelbibash044@gmail.com and 9810930681</p>
+                <h4 class="contact__card-label">Email</h4>
+                <p class="contact__card-value">9841542026</p>
               </div>
             </div>
-            <div class="contact__info-card">
-              <div class="contact__info-icon">
+            <div class="contact__card">
+              <div class="contact__card-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
               </div>
               <div>
-                <h4>Phone</h4>
-                <p></p>
+                <h4 class="contact__card-label">Phone</h4>
+                <p class="contact__card-value">bibashpoudel93@gmail.com</p>
               </div>
             </div>
-            <div class="contact__info-card">
-              <div class="contact__info-icon">
+            <div class="contact__card">
+              <div class="contact__card-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
               </div>
               <div>
-                <h4>Location</h4>
-                <p>School Campus</p>
+                <h4 class="contact__card-label">Location</h4>
+                <p class="contact__card-value">School Campus</p>
               </div>
             </div>
           </div>
           <form class="contact__form" id="contactForm">
+            <h3 class="contact__form-title">Send a Message</h3>
             <div class="form__row">
               <div class="form__group">
                 <label for="name">Your Name</label>
@@ -209,10 +211,7 @@
               <label for="message">Message</label>
               <textarea id="message" name="message" rows="5" placeholder="Write your message here..." required></textarea>
             </div>
-            <button type="submit" class="btn btn--primary btn--full">
-              <span>Send Message</span>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </button>
+            <button type="submit" class="btn btn--primary btn--full">Send Message</button>
           </form>
         </div>
       </div>
@@ -222,8 +221,11 @@
   <footer class="footer">
     <div class="container footer__inner">
       <div class="footer__brand">
-        <span class="footer__icon">BP</span>
-        <p class="footer__copy">&copy; 2026 Bibash Poudel — Teacher Portfolio. All rights reserved.</p>
+        <span class="footer__icon">T2</span>
+        <div>
+          <span class="footer__name">Teacher 2 — Teacher Portfolio</span>
+          <p class="footer__copy">&copy; 2026 All rights reserved.</p>
+        </div>
       </div>
       <div class="footer__social">
         <a href="#" aria-label="LinkedIn" class="footer__social-link">
@@ -244,7 +246,6 @@
   </button>
 
   <div class="toast" id="toast"></div>
-
   <script src="js/script.js"></script>
 </body>
 </html>

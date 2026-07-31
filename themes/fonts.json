@@ -4,5 +4,13 @@
   "academic": { "heading": "'Merriweather', serif", "body": "'Source Sans Pro', sans-serif", "label": "Academic" },
   "playful": { "heading": "'DM Sans', sans-serif", "body": "'Nunito', sans-serif", "label": "Playful" },
   "minimalist": { "heading": "'Helvetica Neue', sans-serif", "body": "'Helvetica Neue', sans-serif", "label": "Minimalist" },
-  "elegant": { "heading": "'Cormorant Garamond', serif", "body": "'Proza Libre', sans-serif", "label": "Elegant" }
+  "elegant": { "heading": "'Cormorant Garamond', serif", "body": "'Proza Libre', sans-serif", "label": "Elegant" },
+  "rounded-sans": { "heading": "'Nunito', sans-serif", "body": "'Inter', sans-serif", "label": "Rounded Sans" },
+  "slab-serif": { "heading": "'Roboto Slab', serif", "body": "'Open Sans', sans-serif", "label": "Slab Serif" },
+  "mono-tech": { "heading": "'Space Grotesk', sans-serif", "body": "'JetBrains Mono', monospace", "label": "Mono Tech" },
+  "editorial": { "heading": "'Frank Ruhl Libre', serif", "body": "'Rubik', sans-serif", "label": "Editorial" },
+  "friendly": { "heading": "'Fredoka', sans-serif", "body": "'Quicksand', sans-serif", "label": "Friendly" },
+  "display": { "heading": "'Poppins', sans-serif", "body": "'Open Sans', sans-serif", "label": "Display" },
+  "newspaper": { "heading": "'Libre Baskerville', serif", "body": "'Source Sans Pro', sans-serif", "label": "Newspaper" },
+  "handwritten": { "heading": "'Caveat', cursive", "body": "'Inter', sans-serif", "label": "Handwritten Accent" }
 }
