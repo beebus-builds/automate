@@ -1,10 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#4f46e5"/>
+    <linearGradient id="tf-bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="0.5" stop-color="#A855F7"/>
+      <stop offset="1" stop-color="#EC4899"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="80" fill="url(#bg)"/>
-  <text x="256" y="330" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="280" font-weight="900" text-anchor="middle" fill="white">TF</text>
+  <rect width="512" height="512" rx="142" fill="url(#tf-bg)"/>
+  <g fill="white">
+    <path d="M256 121 420 199 256 277 92 199Z"/>
+    <path d="M92 199 256 277 256 299 92 220Z" fill-opacity="0.45"/>
+    <path d="M149 249 363 249 363 284Q363 334 256 334Q149 334 149 284Z"/>
+    <path d="M420 284 438 296 420 307 401 296Z"/>
+    <path d="M370 43 388 81 427 100 388 118 370 156 352 118 313 100 352 81Z"/>
+  </g>
+  <path d="M420 199 420 284" stroke="white" stroke-width="20" stroke-linecap="round"/>
 </svg>

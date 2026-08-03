@@ -9,9 +9,8 @@ export default function NotFound() {
 
       <header className="px-6 py-5 relative z-10">
         <div className="max-w-6xl mx-auto">
-          <Link href="/" className="flex items-center gap-2.5 no-underline">
-            <Logo size={30} />
-            <span className="font-extrabold text-sm text-white">TeacherFolio</span>
+          <Link href="/" className="flex items-center no-underline">
+            <Logo size={30} wordmark />
           </Link>
         </div>
       </header>

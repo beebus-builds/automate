@@ -111,9 +111,8 @@ export default function CallsPage() {
     <div className="min-h-screen bg-surface-950 text-slate-200 font-sans">
       <header className="glass-strong border-b border-white/[0.06] px-6 py-3.5">
         <div className="max-w-2xl mx-auto flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-3 no-underline text-white">
-            <Logo size={28} />
-            <span className="font-extrabold text-sm">TeacherFolio</span>
+          <Link href="/" className="flex items-center no-underline text-white">
+            <Logo size={28} wordmark />
           </Link>
           <div className="w-4 h-4 rounded-full bg-white/10" />
           <Link href="/build" className="text-xs text-slate-400 no-underline font-medium hover:text-slate-200 transition-colors">← Build</Link>

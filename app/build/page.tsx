@@ -173,7 +173,7 @@ export default function BuildPage() {
     return (
       <div className="min-h-screen flex flex-col bg-surface-950 text-slate-200 font-sans">
         <header className="px-12 py-6 flex items-center justify-between max-w-[1280px] mx-auto w-full">
-          <div className="flex items-center gap-3"><Logo size={38} /><span className="font-extrabold text-xl text-white">TeacherFolio</span></div>
+          <div className="flex items-center"><Logo size={38} wordmark /></div>
           <Link href="/" className="text-sm text-slate-400 no-underline">← Return Home</Link>
         </header>
         <div className="flex-1 flex items-center justify-center p-6">
@@ -192,9 +192,8 @@ export default function BuildPage() {
   return (
     <div className="h-screen flex flex-col bg-surface-950 text-slate-200 font-sans">
       <header className="glass-strong border-b border-white/[0.06] px-6 py-3.5 flex items-center gap-4 flex-shrink-0">
-        <Link href="/" className="flex items-center gap-3 no-underline text-white">
-          <Logo size={30} />
-          <span className="font-extrabold text-sm">TeacherFolio</span>
+        <Link href="/" className="flex items-center no-underline text-white">
+          <Logo size={30} wordmark />
         </Link>
         <div className="w-4 h-4 rounded-full bg-white/10" />
         <Link href="/" className="text-xs text-slate-400 no-underline font-medium hover:text-slate-200 transition-colors">← Home</Link>

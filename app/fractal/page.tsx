@@ -102,9 +102,8 @@ export default function FractalPage() {
   return (
     <div className="min-h-screen bg-surface-950 text-slate-200 font-sans flex flex-col">
       <header className="glass-strong border-b border-white/[0.06] px-6 py-3.5 flex items-center gap-4 flex-shrink-0">
-        <Link href="/" className="flex items-center gap-3 no-underline text-white">
-          <Logo size={30} />
-          <span className="font-extrabold text-sm">TeacherFolio</span>
+        <Link href="/" className="flex items-center no-underline text-white">
+          <Logo size={30} wordmark />
         </Link>
         <div className="w-4 h-4 rounded-full bg-white/10" />
         <Link href="/" className="text-xs text-slate-400 no-underline font-medium hover:text-slate-200 transition-colors">← Home</Link>

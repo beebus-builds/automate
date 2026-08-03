@@ -37,9 +37,8 @@ export default function HomePage() {
 
       <header className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled ? 'glass-strong' : 'bg-transparent'}`}>
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 no-underline text-white">
-            <Logo size={28} />
-            <span className="font-extrabold text-base tracking-tight">TeacherFolio</span>
+          <Link href="/" className="flex items-center no-underline text-white">
+            <Logo size={30} wordmark />
           </Link>
           <nav className="flex gap-1.5 items-center">
             <Link href="/build" className="px-3.5 py-1.5 text-slate-400 no-underline text-sm font-medium rounded-lg hover:text-white hover:bg-white/5 transition-colors">Build</Link>
