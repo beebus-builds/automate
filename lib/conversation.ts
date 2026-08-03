@@ -9,6 +9,8 @@ export interface TeacherData {
   email: string;
   phone: string;
   theme: string;
+  style?: Record<string, any>;
+  customSections?: any[];
 }
 
 export const emptyData: TeacherData = {

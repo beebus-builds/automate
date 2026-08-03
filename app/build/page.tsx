@@ -9,6 +9,7 @@ import { CallPanel } from '@/components/chat/CallPanel';
 import { parseMessage, generateResponse, getSummary, emptyData, TeacherData } from '@/lib/conversation';
 import { getAllThemes, getCategories, categoryColors, searchThemes, mapThemeToBuildData } from '@/lib/themes';
 import { recommendThemes } from '@/lib/recommend';
+import { runAssistant, makeSectionFromTemplate, AssistantMemory } from '@/lib/assistant/engine';
 import { SkeletonPage } from '@/components/Skeleton';
 
 const allThemes = getAllThemes();
@@ -44,6 +45,7 @@ export default function BuildPage() {
   const [themeCategory, setThemeCategory] = useState<string | null>(null);
   const [showAllThemes, setShowAllThemes] = useState(false);
   const [botTyping, setBotTyping] = useState(false);
+  const [assistantMemory, setAssistantMemory] = useState<AssistantMemory>({ themeIds: [], themeIndex: 0 });
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -102,13 +104,59 @@ export default function BuildPage() {
     if (!val) return;
     addUser(val);
     setInputVal('');
+
+    if (dataCollected) {
+      const sel = allThemes.find(t => t.id === data.theme);
+      const res = runAssistant(val, {
+        name: data.name,
+        subject: data.subject,
+        bio: data.bio,
+        quote: data.quote,
+        achievements: data.achievements,
+        email: data.email,
+        courses: data.courses,
+        years: data.years,
+        collected: true,
+        currentThemeId: data.theme,
+        currentThemeName: sel?.name,
+        customSections: data.customSections || [],
+        memory: assistantMemory,
+      });
+
+      // Persist memory for follow-ups (another one / undo / second one)
+      if (res.memory) setAssistantMemory(res.memory);
+
+      // Apply actions
+      for (const a of res.actions) {
+        if (a.type === 'theme') {
+          setData(p => ({ ...p, theme: a.themeId }));
+        } else if (a.type === 'style') {
+          setData(p => ({ ...p, style: { ...(p.style || {}), ...a.patch } }));
+        } else if (a.type === 'section' && a.op === 'add') {
+          const sec = a.section ?? makeSectionFromTemplate(a.templateId);
+          setData(p => ({ ...p, customSections: [...(p.customSections || []), sec] }));
+        } else if (a.type === 'section' && a.op === 'remove') {
+          const id = a.sectionId;
+          setData(p => ({ ...p, customSections: (p.customSections || []).filter(s => s.id !== id) }));
+        }
+      }
+
+      replyWithTyping(res.text);
+
+      // Trigger build if requested
+      if (res.build) {
+        setTimeout(() => handleGenerate(), 900);
+      }
+      return;
+    }
+
     const { extracted } = parseMessage(val, data);
     const updated = { ...data, ...extracted };
     if (extracted.courses) updated.courses = [...new Set([...data.courses, ...extracted.courses])];
     setData(updated);
     if (isComplete(updated)) {
       setDataCollected(true);
-      replyWithTyping('Great — I have everything I need! Browse **1000+ themes** below and pick the one you like:');
+      replyWithTyping('Great — I have everything I need! You can pick a theme below, or tell me in chat what you\'d like — e.g. **"a calm blue theme"**, **"rounded corners"**, or **"add a testimonials section"**.');
     } else {
       replyWithTyping(generateResponse(updated, extracted));
     }
@@ -132,7 +180,8 @@ export default function BuildPage() {
 
     const payload = {
       theme: theme ? mapThemeToBuildData(theme) : { name: 'theme-theme-1' },
-      style: { fontPair: theme?.fonts?.heading || 'Inter', roundness: theme?.layout?.roundness || 'rounded', shadowDepth: theme?.layout?.shadowDepth || 'soft', spacing: theme?.layout?.spacing || 'normal', headerFixed: true, buttonStyle: theme?.layout?.buttonStyle || 'rounded', sectionStyle: theme?.layout?.cardStyle === 'glass' ? 'glass' : 'bordered' },
+      style: { fontPair: theme?.fonts?.heading || 'Inter', roundness: theme?.layout?.roundness || 'rounded', shadowDepth: theme?.layout?.shadowDepth || 'soft', spacing: theme?.layout?.spacing || 'normal', headerFixed: true, buttonStyle: theme?.layout?.buttonStyle || 'rounded', sectionStyle: theme?.layout?.cardStyle === 'glass' ? 'glass' : 'bordered', ...(data.style || {}) },
+      customSections: data.customSections || [],
       site: { title: `${data.name} — Teacher Portfolio` },
       seo: { metaTitle: `${data.name} — Educator Portfolio`, metaDesc: (data.bio || '').slice(0, 160) || `Professional portfolio of ${data.name}, ${data.subject} educator.`, ogImage: '', googleAnalytics: '' },
       hero: { tagline: `${data.subject || 'Educator'} Portfolio`, title: `Welcome to ${data.name}'s Classroom`, highlight: data.name, description: data.bio || 'Dedicated to inspiring students and fostering academic excellence.', initials, heroImage: '' },
@@ -345,11 +394,11 @@ export default function BuildPage() {
         </div>
       </main>
 
-      {!dataCollected && (
+      {!built && (
         <footer className="border-t border-white/[0.06] bg-surface-800 px-5 py-3 flex-shrink-0">
           <div className="max-w-[720px] mx-auto flex gap-3 items-center">
             <CallPanel teacherName={data.name || 'Teacher'} />
-            <input ref={inputRef} value={inputVal} onChange={e => setInputVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSend(); }} placeholder="Type naturally — I&apos;ll figure out what you mean..." className="flex-1 px-4 py-3 bg-surface-700 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-500" />
+            <input ref={inputRef} value={inputVal} onChange={e => setInputVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleSend(); }} placeholder={dataCollected ? "Ask me anything — theme, style, sections, or “build my site”..." : "Type naturally — I&apos;ll figure out what you mean..."} className="flex-1 px-4 py-3 bg-surface-700 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-500" />
             <button onClick={handleSend} disabled={botTyping || !inputVal.trim()} className="px-7 py-3 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:translate-y-0">Send</button>
           </div>
         </footer>
