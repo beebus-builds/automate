@@ -122,6 +122,24 @@ export default function HomePage() {
 
       <section className="py-[72px] px-6 border-t border-white/[0.04] relative z-10">
         <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+            {[
+              { num: '1,000+', label: 'Themes' },
+              { num: '10k+', label: 'Sites Built' },
+              { num: '5 min', label: 'Average Build Time' },
+              { num: '100%', label: 'Free to Start' },
+            ].map((s, i) => (
+              <div key={i} className="glass rounded-2xl p-6 text-center hover:bg-white/[0.04] transition-colors">
+                <div className="text-2xl font-black text-gradient mb-1">{s.num}</div>
+                <div className="text-xs text-slate-500 font-semibold uppercase tracking-wide">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-[72px] px-6 border-t border-white/[0.04] relative z-10">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <span className="inline-block text-[0.65rem] font-bold uppercase tracking-[1.5px] text-brand-400 px-3 py-1 bg-brand-500/10 rounded-full mb-4">Features</span>
             <h2 className="text-2xl font-extrabold text-white tracking-[-0.5px]">Everything you need</h2>

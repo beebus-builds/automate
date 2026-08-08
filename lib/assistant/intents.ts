@@ -79,6 +79,36 @@ export interface AssistantSlots {
   raw: string;
 }
 
+/** Levenshtein distance — powers typo-tolerant matching. */
+export function editDistance(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (Math.abs(m - n) > 3) return 99;
+  const dp: number[] = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j];
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return dp[n];
+}
+
+/** Best fuzzy match for a single word against a dictionary, or null. */
+export function fuzzyWord(word: string, dict: string[], maxDist = 2): string | null {
+  if (word.length < 3) return null;
+  const cap = Math.min(maxDist, word.length <= 3 ? 1 : maxDist);
+  let best: string | null = null;
+  let bestD = 99;
+  for (const d of dict) {
+    const dist = editDistance(word, d);
+    if (dist <= cap && dist < bestD) { bestD = dist; best = d; }
+  }
+  return best;
+}
+
 function has(text: string, ...groups: (string | string[])[]): boolean {
   const words = ' ' + text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ') + ' ';
   const match = (w: string): boolean => words.includes(' ' + w + ' ') || words.includes(' ' + w + ' ');
@@ -162,7 +192,7 @@ export function extractColor(text: string): { color: ThemeCategory; word: string
   return best;
 }
 
-/** Extract ALL color slots from a message (in order of appearance) */
+/** Extract ALL color slots from a message (in order of appearance, typo-tolerant) */
 export function extractAllColors(text: string): { color: ThemeCategory; word: string }[] {
   const lower = ' ' + text.toLowerCase().replace(/[^a-z\s]/g, ' ') + ' ';
   const found: { color: ThemeCategory; word: string }[] = [];
@@ -175,8 +205,30 @@ export function extractAllColors(text: string): { color: ThemeCategory; word: st
       used.add(word);
     }
   }
+  // typo pass: single unknown words that are close to a known color
+  for (const token of lower.trim().split(/\s+/)) {
+    if (found.some(f => f.word === token)) continue;
+    if (stopWords.has(token)) continue;
+    const fixed = fuzzyWord(token, Object.keys(COLOR_WORDS));
+    if (fixed && !used.has(fixed)) {
+      found.push({ color: COLOR_WORDS[fixed][0], word: fixed });
+      used.add(fixed);
+    }
+  }
   return found;
 }
+
+/** Common words to never fuzzy-match against colors/moods. */
+const stopWords = new Set([
+  'the', 'and', 'that', 'this', 'with', 'from', 'have', 'theme', 'themes', 'make', 'like', 'want',
+  'some', 'one', 'you', 'your', 'something', 'anything', 'think', 'about', 'what', 'which', 'where',
+  'there', 'their', 'they', 'she', 'his', 'her', 'our', 'them', 'then', 'than', 'just', 'very', 'really',
+  'nice', 'great', 'good', 'please', 'also', 'kind', 'style', 'styles', 'fonts', 'font', 'section',
+  'sections', 'color', 'colours', 'colors', 'page', 'site', 'website', 'build', 'builder', 'new',
+  'more', 'much', 'many', 'could', 'would', 'should', 'shall', 'will', 'can', 'could', 'may', 'might',
+  'using', 'used', 'use', 'look', 'looking', 'looks', 'need', 'needs', 'want', 'wants', 'going', 'got',
+  'getting', 'give', 'gave', 'show', 'shows', 'showing', 'add', 'adding', 'added', 'remove', 'removing',
+]);
 
 /** Extract a mood / design direction word */
 export function extractMood(text: string): string | null {
@@ -187,12 +239,23 @@ export function extractMood(text: string): string | null {
   return null;
 }
 
-/** Extract ALL mood words in a message */
+/** Extract ALL mood words in a message (typo-tolerant) */
 export function extractAllMoods(text: string): string[] {
   const lower = text.toLowerCase();
   const moods: string[] = [];
   for (const mood of Object.keys(MOOD_DIRECTIONS)) {
     if (lower.includes(mood) && !moods.includes(mood)) moods.push(mood);
+  }
+  // typo pass for moods
+  if (moods.length === 0) {
+    for (const token of lower.replace(/[^a-z\s]/g, ' ').trim().split(/\s+/)) {
+      if (token.length < 4 || stopWords.has(token)) continue;
+      const fixed = fuzzyWord(token, Object.keys(MOOD_DIRECTIONS));
+      if (fixed && !moods.includes(fixed)) {
+        moods.push(fixed);
+        break;
+      }
+    }
   }
   return moods;
 }
@@ -267,10 +330,31 @@ export function extractStyle(text: string): Partial<IntentResult> {
   if (has(lower, 'sticky header', 'fixed header', 'header stays', 'pin header')) out.headerFixed = true;
   if (has(lower, 'scrolls with', 'not sticky', 'header scrolls', 'unpinned')) out.headerFixed = false;
 
+  // typo pass for single-word style attributes
+  if (Object.keys(out).length === 0) {
+    const fuzzyTokens: string[] = [];
+    for (const token of lower.trim().split(/\s+/)) {
+      if (token.length < 3 || stopWords.has(token)) continue;
+      fuzzyTokens.push(token);
+    }
+    // corner words (round/rounded) → roundness, even when typo'd
+    const cornerWord = fuzzyTokens.find(t => editDistance(t, 'round') <= 1 || editDistance(t, 'rounded') <= 1);
+    if (cornerWord) out.roundness = 'rounded';
+    for (const token of fuzzyTokens) {
+      const fixed = fuzzyWord(token, Object.keys(STYLE_WORD_MAP).filter(w => !w.includes(' ')));
+      if (fixed) {
+        const spec = STYLE_WORD_MAP[fixed] as any;
+        if (spec.attr === 'fontPair' && !has(lower, 'font', 'type', 'typography')) continue;
+        (out as any)[spec.attr] = spec.value;
+        break;
+      }
+    }
+  }
+
   return out;
 }
 
-/** Extract ALL section names for add/remove requests */
+/** Extract ALL section names for add/remove requests (typo-tolerant) */
 export function extractSections(text: string): string[] {
   const lower = ' ' + text.toLowerCase() + ' ';
   const ids: string[] = [];
@@ -278,6 +362,18 @@ export function extractSections(text: string): string[] {
   for (const [word, id] of words) {
     if (lower.includes(' ' + word + ' ') || lower.includes(word + ' ')) {
       if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  // typo pass for section names
+  if (ids.length === 0) {
+    for (const token of lower.trim().split(/\s+/)) {
+      if (token.length < 4 || stopWords.has(token)) continue;
+      const fixed = fuzzyWord(token, Object.keys(SECTION_WORD_MAP));
+      if (fixed) {
+        const id = SECTION_WORD_MAP[fixed];
+        if (!ids.includes(id)) ids.push(id);
+        break;
+      }
     }
   }
   return ids;
@@ -295,10 +391,14 @@ export function isRemove(text: string): boolean {
   return has(lower, 'remove', 'delete', 'get rid of', 'drop the', 'take out', 'remove the', 'take away');
 }
 
-/** Detect negation: "not red", "no", "don't want" */
+/** Detect negation: "not red", "no", "don't want" (word-boundary aware) */
 export function isNegated(text: string): boolean {
   const lower = ' ' + text.toLowerCase() + ' ';
-  return NEGATION_WORDS.some(w => lower.includes(w));
+  return NEGATION_WORDS.some(w => {
+    const word = w.trim();
+    if (w.endsWith(' ')) return lower.includes(word + ' ') || lower.includes(word + ' ') || lower.includes(' ' + word + ' ');
+    return lower.includes(' ' + word + ' ') || lower.includes(' ' + word + '\'') || lower.includes(' ' + word + 's');
+  });
 }
 
 /** Colors the user explicitly wants to AVOID ("not red", "avoid pink") */

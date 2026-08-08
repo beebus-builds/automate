@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
     if (!user?.id) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    const { messages, step, data } = await request.json();
-    await saveChatState(user.id, messages, step, data || {});
+    const { messages, step, data, memory } = await request.json();
+    await saveChatState(user.id, messages, step, data || {}, memory);
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });

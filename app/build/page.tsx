@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+import type { MouseEvent } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/Logo';
 import { AuthModal } from '@/components/AuthModal';
@@ -24,6 +25,43 @@ function isComplete(d: TeacherData): boolean {
   return !!(d.name && d.bio && (d.subject || d.courses.length) && d.years && d.quote);
 }
 
+/** Convert assistant markdown (bold, italic, bullets) to safe HTML for chat bubbles. */
+function mdToHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|\n)\s*[-•]\s+/g, '$1<span class="bullet">•</span> ')
+    .replace(/^["“”](.*?)["“”]/gm, '“$1”')
+    .replace(/\n/g, '<br/>');
+}
+
+const BUILD_STEPS = ['Applying your theme…', 'Writing your sections…', 'Crafting your copy…', 'Packaging your site…'];
+
+/** Contextual quick-replies offered during the data-collection phase. */
+const COLLECTION_CHIPS: Record<string, string[]> = {
+  'subject or courses you teach': ['Mathematics', 'Science', 'English', 'History'],
+  'years of teaching experience': ['5 years', '10 years', '15+ years'],
+  'the courses you teach': ['Algebra, Geometry, Calculus', 'Biology & Chemistry'],
+  'bio or teaching philosophy': ['Hands-on lessons built around student curiosity', 'Inquiry-based learning where questions lead the way'],
+  'a teaching quote or philosophy': ['“Education is the most powerful weapon”', '“Every student can learn, just not on the same day”'],
+  'any awards or achievements': ['National Teaching Award, Board Certified', 'Best New Teacher 2023, Google Educator'],
+  'contact email': ['teacher@school.edu'],
+};
+
+function collectionSuggestions(d: TeacherData): string[] {
+  const missing: string[] = [];
+  if (!d.name) missing.push('name');
+  if (!d.subject && !d.courses.length) missing.push('subject or courses you teach');
+  if (!d.years) missing.push('years of teaching experience');
+  if (!d.bio && !d.quote) missing.push('bio or teaching philosophy');
+  if (!d.courses.length) missing.push('the courses you teach');
+  if (!d.quote) missing.push('a teaching quote or philosophy');
+  if (!d.achievements) missing.push('any awards or achievements');
+  if (!d.email) missing.push('contact email');
+  const key = missing[0];
+  return key ? (COLLECTION_CHIPS[key] || []) : [];
+}
+
 export default function BuildPage() {
   const [user, setUser] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -36,6 +74,7 @@ export default function BuildPage() {
   const [dataCollected, setDataCollected] = useState(false);
   const [inputVal, setInputVal] = useState('');
   const [building, setBuilding] = useState(false);
+  const [buildStep, setBuildStep] = useState(0);
   const [built, setBuilt] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [publicUrl, setPublicUrl] = useState('');
@@ -45,7 +84,8 @@ export default function BuildPage() {
   const [themeCategory, setThemeCategory] = useState<string | null>(null);
   const [showAllThemes, setShowAllThemes] = useState(false);
   const [botTyping, setBotTyping] = useState(false);
-  const [assistantMemory, setAssistantMemory] = useState<AssistantMemory>({ themeIds: [], themeIndex: 0 });
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [assistantMemory, setAssistantMemory] = useState<AssistantMemory>({ themeIds: [], themeIndex: 0, context: { turns: [], lastDirection: { colors: [], moods: [] }, recentSections: [] }, persona: { name: 'assistant', seen: {} } });
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -73,6 +113,14 @@ export default function BuildPage() {
               setData(loaded);
               setDataCollected(isComplete(loaded));
             }
+            if (sd.state.memory) {
+              setAssistantMemory({
+                themeIds: [], themeIndex: 0,
+                context: { turns: [], lastDirection: { colors: [], moods: [] }, recentSections: [] },
+                persona: { name: 'assistant', seen: {} },
+                ...sd.state.memory,
+              });
+            }
           }
         }
       })
@@ -84,11 +132,10 @@ export default function BuildPage() {
       fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: msgs, step: dataCollected ? 'done' : 'chatting', data }),
+        body: JSON.stringify({ messages: msgs, step: dataCollected ? 'done' : 'chatting', data, memory: assistantMemory }),
       }).catch(() => {});
     }
-  }, [msgs, data, dataCollected]);
-
+  }, [msgs, data, dataCollected, assistantMemory]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
   useEffect(() => { if (user) inputRef.current?.focus(); }, [user, dataCollected]);
 
@@ -99,11 +146,12 @@ export default function BuildPage() {
     setTimeout(() => addBot(text), delay);
   };
 
-  const handleSend = () => {
-    const val = inputVal.trim();
+  const handleSend = (text?: string | MouseEvent) => {
+    const val = (typeof text === 'string' ? text : inputVal).trim();
     if (!val) return;
     addUser(val);
     setInputVal('');
+    setSuggestions([]);
 
     if (dataCollected) {
       const sel = allThemes.find(t => t.id === data.theme);
@@ -125,6 +173,7 @@ export default function BuildPage() {
 
       // Persist memory for follow-ups (another one / undo / second one)
       if (res.memory) setAssistantMemory(res.memory);
+      setSuggestions(res.suggestions || []);
 
       // Apply actions
       for (const a of res.actions) {
@@ -156,10 +205,26 @@ export default function BuildPage() {
     setData(updated);
     if (isComplete(updated)) {
       setDataCollected(true);
+      setSuggestions([]);
       replyWithTyping('Great — I have everything I need! You can pick a theme below, or tell me in chat what you\'d like — e.g. **"a calm blue theme"**, **"rounded corners"**, or **"add a testimonials section"**.');
     } else {
       replyWithTyping(generateResponse(updated, extracted));
+      setSuggestions(collectionSuggestions(updated));
     }
+  };
+
+  const restartConversation = () => {
+    setMsgs([{ role: 'bot', text: "Hi there! I'll help you build a beautiful teacher portfolio website.\n\nTo start — **what's your full name?**" }]);
+    setData(emptyData);
+    setDataCollected(false);
+    setAssistantMemory({ themeIds: [], themeIndex: 0, context: { turns: [], lastDirection: { colors: [], moods: [] }, recentSections: [] }, persona: { name: 'assistant', seen: {} } });
+    setSuggestions([]);
+    setInputVal('');
+  };
+
+  const logout = async () => {
+    await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }) });
+    setUser(null);
   };
 
   const selectTheme = (id: string) => {
@@ -172,6 +237,8 @@ export default function BuildPage() {
 
   const handleGenerate = async () => {
     setBuilding(true);
+    setBuildStep(0);
+    const stepTimer = setInterval(() => setBuildStep(s => Math.min(s + 1, BUILD_STEPS.length - 1)), 900);
     const theme = allThemes.find(t => t.id === data.theme);
     const initials = data.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'TP';
     const courseList = data.courses.length > 0
@@ -195,11 +262,13 @@ export default function BuildPage() {
     try {
       await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       await fetch('/api/build', { method: 'POST' });
+      clearInterval(stepTimer);
       setDownloadUrl(`/api/download?name=${encodeURIComponent(data.name || 'Teacher')}&_=${Date.now()}`);
       if (user?.id) setPublicUrl(`/s/${user.id}`);
       setBuilt(true);
       addBot('Your website has been generated!');
     } catch (e: any) {
+      clearInterval(stepTimer);
       addBot(`Error: ${e.message}`);
     } finally { setBuilding(false); }
   };
@@ -246,22 +315,27 @@ export default function BuildPage() {
         </Link>
         <div className="w-4 h-4 rounded-full bg-white/10" />
         <Link href="/" className="text-xs text-slate-400 no-underline font-medium hover:text-slate-200 transition-colors">← Home</Link>
-        <div className="ml-auto flex items-center gap-4 max-w-[260px]">
-          <span className="text-xs font-semibold text-brand-300">👤 {user.name}</span>
-          <div className="flex-1 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+        <div className="ml-auto flex items-center gap-3 max-w-[340px]">
+          <button onClick={restartConversation} title="Start a fresh conversation" className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 border border-white/10 bg-white/[0.03] hover:text-white hover:border-white/20 hover:bg-white/[0.06] transition-colors flex-shrink-0">↺ Restart</button>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-[0.7rem] font-black text-white flex-shrink-0 shadow-lg shadow-brand-500/25">{user.name?.slice(0, 1).toUpperCase() || 'T'}</div>
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-white truncate">{user.name}</div>
+            <div className="text-[0.6rem] text-slate-500">{Math.round(progressPct)}% complete</div>
+          </div>
+          <div className="hidden sm:block h-1.5 w-20 bg-white/[0.06] rounded-full overflow-hidden flex-shrink-0">
             <div className="h-full rounded-full bg-gradient-to-r from-brand-500 to-purple-500 transition-all duration-300" style={{ width: `${progressPct}%` }} />
           </div>
-          <span className="text-[0.7rem] font-bold text-brand-300 w-7">{Math.round(progressPct)}%</span>
+          <button onClick={logout} title="Sign out" className="w-8 h-8 rounded-xl text-xs text-slate-400 border border-white/10 bg-white/[0.03] hover:text-red-400 hover:border-red-400/30 transition-colors flex-shrink-0">⏻</button>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-5 scroll-smooth">
         <div className="max-w-[780px] mx-auto">
           {msgs.map((m, i) => (
-            <div key={i} className={`flex gap-3 mb-5 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={i} className={`flex gap-3 mb-5 animate-fade-up ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {m.role === 'bot' && <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-500 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-500/25 text-sm">🤖</div>}
               <div className={`max-w-[82%] px-5 py-3 rounded-2xl text-sm leading-relaxed border whitespace-pre-wrap ${m.role === 'user' ? 'bg-gradient-to-br from-brand-500 to-indigo-600 text-white border-transparent shadow-lg shadow-brand-500/20' : 'bg-surface-700 text-white border border-white/[0.06] shadow-md shadow-black/20'}`}>
-                {m.role === 'bot' ? <div dangerouslySetInnerHTML={{ __html: m.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} /> : m.text}
+                {m.role === 'bot' ? <div dangerouslySetInnerHTML={{ __html: mdToHtml(m.text) }} /> : m.text}
               </div>
             </div>
           ))}
@@ -274,6 +348,20 @@ export default function BuildPage() {
                 <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                 <span className="w-2 h-2 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
+            </div>
+          )}
+
+          {suggestions.length > 0 && !botTyping && (
+            <div className="flex gap-2 flex-wrap mb-5 ml-10 animate-fade-up">
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleSend(s)}
+                  className="px-4 py-2 rounded-full text-xs font-semibold text-brand-200 bg-brand-500/10 border border-brand-500/25 hover:bg-brand-500/20 hover:border-brand-500/50 hover:text-white transition-all cursor-pointer"
+                >
+                  {s} →
+                </button>
+              ))}
             </div>
           )}
 
@@ -363,6 +451,14 @@ export default function BuildPage() {
                   );
                 })}
               </div>
+              {filteredThemes.length === 0 && (
+                <div className="ml-10 mb-4 p-8 rounded-2xl border border-dashed border-white/10 text-center">
+                  <div className="text-3xl mb-3">🔍</div>
+                  <div className="text-sm font-semibold text-white mb-1">No themes match “{themeSearch}”</div>
+                  <div className="text-xs text-slate-500 mb-4">Try a different keyword, or clear the search to browse all themes.</div>
+                  <button onClick={() => { setThemeSearch(''); setThemeCategory(null); }} className="px-4 py-2 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-lg text-xs font-bold shadow-lg shadow-brand-500/25 transition-all hover:-translate-y-0.5">Clear search</button>
+                </div>
+              )}
               {filteredThemes.length > 30 && !showAllThemes && (
                 <button onClick={() => setShowAllThemes(true)} className="ml-10 mb-4 px-4 py-2 bg-transparent text-brand-400 border border-brand-400/30 rounded-lg text-xs font-semibold hover:bg-brand-500/10 transition-colors">
                   Show all {filteredThemes.length} themes →
@@ -381,9 +477,21 @@ export default function BuildPage() {
                     </div>
                   ));
                 })()}
-                <button onClick={handleGenerate} disabled={building} className="w-full py-3.5 mt-5 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                  {building ? 'Generating...' : '🚀 Generate My Website'}
+                <button onClick={handleGenerate} disabled={building} className="w-full py-3.5 mt-5 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 inline-flex items-center justify-center gap-2">
+                  {building ? (
+                    <>
+                      <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      {BUILD_STEPS[buildStep]}
+                    </>
+                  ) : '🚀 Generate My Website'}
                 </button>
+                {building && (
+                  <div className="mt-3 flex items-center gap-1.5 justify-center">
+                    {BUILD_STEPS.map((s, i) => (
+                      <span key={s} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i <= buildStep ? 'bg-gradient-to-r from-brand-500 to-purple-500' : 'bg-white/[0.06]'}`} />
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           )}

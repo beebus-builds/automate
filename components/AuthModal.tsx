@@ -6,6 +6,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: { isOpen: boolean;
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -70,7 +71,18 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: { isOpen: boolean;
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-1.5">Password</label>
-            <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-3 bg-surface-800 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-600" />
+            <div className="relative">
+              <input type={showPassword ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-3 pr-12 bg-surface-800 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all placeholder:text-slate-600" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {showPassword ? (
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24M1 1l22 22"/>
+                  ) : (
+                    <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>
+                  )}
+                </svg>
+              </button>
+            </div>
           </div>
 
           <button type="submit" disabled={loading} className="w-full py-3.5 mt-1 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2">
@@ -85,9 +97,9 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess }: { isOpen: boolean;
 
         <div className="text-center mt-5 text-sm text-slate-500">
           {mode === 'login' ? (
-            <span>Don&apos;t have an account? <button onClick={() => setMode('register')} className="bg-none border-none text-brand-400 font-semibold cursor-pointer hover:underline">Register</button></span>
+            <span>Don&apos;t have an account? <button onClick={() => { setMode('register'); setError(''); }} className="bg-none border-none text-brand-400 font-semibold cursor-pointer hover:underline">Register</button></span>
           ) : (
-            <span>Already have an account? <button onClick={() => setMode('login')} className="bg-none border-none text-brand-400 font-semibold cursor-pointer hover:underline">Sign In</button></span>
+            <span>Already have an account? <button onClick={() => { setMode('login'); setError(''); }} className="bg-none border-none text-brand-400 font-semibold cursor-pointer hover:underline">Sign In</button></span>
           )}
         </div>
       </div>

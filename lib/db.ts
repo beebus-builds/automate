@@ -1,5 +1,7 @@
 import path from 'path';
 import fs from 'fs';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 const DB_PATH = path.join(process.cwd(), 'data', 'teacher.db');
 const USE_PG = process.env.USE_POSTGRES === 'true' && !!process.env.DATABASE_URL;
@@ -207,16 +209,20 @@ export async function saveContent(data: any, userId?: number): Promise<void> {
 export async function getChatState(userId: number): Promise<any> {
   const row = await queryJson('SELECT messages, step, data FROM chat_state WHERE user_id = $1', [userId]);
   if (!row) return null;
+  const data = row.data || {};
+  const memory = data.__assistantMemory;
+  if (memory) delete data.__assistantMemory;
   return {
     messages: row.messages,
     step: row.step,
-    data: row.data,
+    data,
+    memory,
   };
 }
 
-export async function saveChatState(userId: number, messages: any, step: string, data: any): Promise<void> {
+export async function saveChatState(userId: number, messages: any, step: string, data: any, memory?: any): Promise<void> {
   const msgsJson = JSON.stringify(messages);
-  const dataJson = JSON.stringify(data);
+  const dataJson = JSON.stringify({ ...(data || {}), __assistantMemory: memory || undefined });
   if (backend === 'pg') {
     await pool.query(
       "INSERT INTO chat_state (user_id, messages, step, data, updated_at) VALUES ($1, $2, $3, $4, NOW()) ON CONFLICT (user_id) DO UPDATE SET messages = $2, step = $3, data = $4, updated_at = NOW()",

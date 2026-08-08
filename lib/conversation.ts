@@ -21,7 +21,7 @@ export const emptyData: TeacherData = {
 
 const namePatterns = [
   /(?:I'm|I am|my name is|call me|name's|this is)\s+([A-Z][a-zA-Z'.\- ]{1,40})/i,
-  /^([A-Z][a-zA-Z'.\- ]{2,40})(?:,|\.|!|$)/,
+  /^([A-Z][a-zA-Z'.\- ]+ [A-Z][a-zA-Z'.\- ]+)(?:,|\.|!|$)/,
 ];
 
 const subjectPatterns = [
@@ -160,6 +160,10 @@ export function parseMessage(input: string, current: TeacherData): ParseResult {
           unmatched = unmatched.replace(new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').trim();
         }
       });
+    } else if (/^[a-z][a-z\s'&/]{2,39}$/i.test(unmatched.trim()) && !/^(i|i'm|i\'m|im|i've|i\'ve|you|you're|we|we're|they|they're|he|she|it|that|this|there)\b/i.test(unmatched.trim())) {
+      // Bare subject fallback — a single short phrase like "Mathematics"
+      extracted.subject = unmatched.trim().replace(/\s+/g, ' ');
+      unmatched = '';
     }
   }
 
@@ -168,7 +172,8 @@ export function parseMessage(input: string, current: TeacherData): ParseResult {
     const parts = input.split(',').map(s => s.trim()).filter(s => s.length > 2 && s.length < 60);
     if (parts.length >= 2 && !current.courses.length) {
       // Check they look like course names (not full sentences)
-      const courseLike = parts.filter(p => p.split(' ').length <= 6 && !p.endsWith('.') && !p.endsWith('!') && !p.endsWith('?'));
+      const sentenceWords = /\b(i|we|my|our|you|your|the|a|an|is|am|are|on|in|to|for|and|with|of|focus|teach|teaching|learning|building|through)\b/i;
+      const courseLike = parts.filter(p => p.split(' ').length <= 6 && !p.endsWith('.') && !p.endsWith('!') && !p.endsWith('?') && !sentenceWords.test(p));
       if (courseLike.length >= 2) {
         extracted.courses = courseLike;
         courseLike.forEach(c => {

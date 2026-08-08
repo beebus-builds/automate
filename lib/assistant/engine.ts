@@ -18,6 +18,11 @@ import { recommendThemes } from '@/lib/recommend';
 import { recommendSectionTemplates } from '@/lib/sectionRecommend';
 import { SECTION_TEMPLATES, findTemplate } from '@/lib/sectionTemplates';
 import { newBlock, makeId, CustomSection, SectionBlock } from '@/lib/sections';
+import {
+  emptyContext, ConversationContext, recordTurn, noteTheme, noteSections,
+  setPending, clearPending, resolveFollowUp, lastMentionedTheme,
+} from './context';
+import { emptyPersona, Persona, say } from './responses';
 
 export interface StylePatch {
   fontPair?: string;
@@ -46,6 +51,8 @@ export interface AssistantMemory {
   lastAction?: 'theme' | 'style' | 'section';
   lastStylePatch?: StylePatch;
   lastSectionId?: string;
+  context?: ConversationContext;
+  persona?: Persona;
 }
 
 export interface AssistantState {
@@ -96,7 +103,10 @@ function chips(...items: (string | string[])[]): string[] {
   return items.flat().slice(0, 4);
 }
 
-const emptyMemory = (): AssistantMemory => ({ themeIds: [], themeIndex: 0 });
+const emptyMemory = (): AssistantMemory => ({
+  themeIds: [], themeIndex: 0,
+  context: emptyContext(), persona: emptyPersona(),
+});
 
 /**
  * Rank the entire theme catalog against colors, moods, subject and free text.
@@ -317,9 +327,12 @@ function actionSummary(actions: AssistantAction[], state: AssistantState): strin
     if (a.type === 'theme') {
       parts.push(`switched your theme to **${a.themeName}**`);
     } else if (a.type === 'style') {
-      parts.push('tuned the style');
+      const ack = styleAck(a.patch);
+      parts.push(ack.startsWith('set ') ? `set ${ack.slice(4)}` : ack);
     } else if (a.type === 'section' && a.op === 'add') {
-      parts.push(`added a **${sectionDisplayName(a.templateId)}** section`);
+      const name = sectionDisplayName(a.templateId);
+      const article = /^[aeiou]/i.test(name) ? 'an' : 'a';
+      parts.push(`added ${article} **${name}** section`);
     } else if (a.type === 'section' && a.op === 'remove') {
       parts.push('removed a section');
     }
@@ -335,12 +348,143 @@ function themeWhy(action: Extract<AssistantAction, { type: 'theme' }>, note: str
   return reasons.slice(0, 2).join('; ');
 }
 
+/** Collect style slot names into a token list for context resolution. */
+function collectStyleTokens(slots: AssistantSlots): string[] {
+  const tokens: string[] = [];
+  if (slots.fontId) tokens.push('font');
+  if (slots.roundness) tokens.push('corners');
+  if (slots.shadowDepth) tokens.push('shadows');
+  if (slots.spacing) tokens.push('spacing');
+  if (slots.buttonStyle) tokens.push('buttons');
+  if (slots.layout) tokens.push('layout');
+  if (slots.heroStyle) tokens.push('hero');
+  if (slots.headerFixed !== undefined) tokens.push('header');
+  return tokens;
+}
+
+/** Add a single section (used by pending "yes" follow-ups). */
+function handleAddSection(
+  templateId: string,
+  state: AssistantState,
+  ctx: ConversationContext,
+  persona: Persona,
+  mem: AssistantMemory,
+  reply: (t: string, extra?: any) => AssistantResult,
+  actions: AssistantAction[],
+): AssistantResult {
+  if (countExisting(templateId, state) > 0) {
+    return reply(
+      `You already have **${sectionDisplayName(templateId)}** on the page. Want to remove it instead?`,
+      { context: clearPending(ctx), suggestions: chips('Remove it', 'Add something else') },
+    );
+  }
+  const sec = personalizeSection(templateId, state);
+  actions.push({ type: 'section', op: 'add', templateId, sectionId: sec.id, section: sec });
+  const nextCtx = noteSections(clearPending(ctx), [templateId]);
+  return reply(say(persona, 'sectionAdd', { section: sectionDisplayName(templateId) }), {
+    actions,
+    memory: { ...mem, lastAction: 'section' as const, lastSectionId: sec.id, context: nextCtx },
+    suggestions: chips('Add another section', 'Build my site'),
+  });
+}
+
+/** Handle a theme request (used by pending "yes" follow-ups). */
+function handleThemeRequest(
+  message: string,
+  slots: AssistantSlots,
+  state: AssistantState,
+  ctx: ConversationContext,
+  persona: Persona,
+  mem: AssistantMemory,
+  reply: (t: string, extra?: any) => AssistantResult,
+  actions: AssistantAction[],
+): AssistantResult {
+  const res = themeAction(message, slots, state);
+  actions.push(res.action);
+  const action = res.action as Extract<AssistantAction, { type: 'theme' }>;
+  const why = themeWhy(action, res.note);
+  const nextCtx = noteTheme(ctx, action.themeId, action.themeName, slots.colors, slots.moods, state.subject);
+  return reply(`${say(persona, 'themeOk', { theme: `**${action.themeName}**`, vibe: (slots.moods[0] || 'a designed educator look') })}\n\nWhy: ${why}`, {
+    actions,
+    memory: { ...mem, context: nextCtx, lastAction: 'theme' as const },
+    suggestions: chips('Another one', 'Add testimonials', 'Build my site'),
+  });
+}
+
 /** Main entry: turn a user message + state into a reply and actions. */
 export function runAssistant(message: string, state: AssistantState): AssistantResult {
   const intent = detectIntent(message);
   const slots = extractSlots(message);
   const mem = state.memory || emptyMemory();
+  const ctx = mem.context || emptyContext();
+  const persona = mem.persona || emptyPersona();
   const actions: AssistantAction[] = [];
+
+  // Terse follow-up completion ("green", "that one", "the second one")
+  const fup = resolveFollowUp(ctx, message, {
+    colors: slots.colors,
+    moods: slots.moods,
+    style: collectStyleTokens(slots),
+    sectionsToAdd: slots.sectionsToAdd,
+    build: slots.build,
+    affirmation: slots.affirmation,
+    negation: slots.negation,
+    alternate: slots.alternate,
+    index: slots.index,
+  });
+
+  const reply = (text: string, extra: { actions?: AssistantAction[]; build?: boolean; suggestions?: string[]; context?: ConversationContext; memory?: AssistantMemory } = {}): AssistantResult => {
+    const baseCtx = extra.context || ctx;
+    const nextCtx = recordTurn(baseCtx, {
+      role: 'user',
+      text: message,
+      intent: intent.intent,
+      colors: slots.colors.length ? slots.colors : undefined,
+      colorWords: slots.colorWords.length ? slots.colorWords : undefined,
+      moods: slots.moods.length ? slots.moods : undefined,
+      sections: slots.sectionsToAdd.length ? slots.sectionsToAdd : undefined,
+    }, text);
+    return {
+      text,
+      actions: extra.actions || actions,
+      build: extra.build,
+      suggestions: extra.suggestions,
+      memory: { ...mem, ...extra.memory, context: nextCtx, persona },
+    };
+  };
+
+  // ── Bare yes answering a pending question ──
+  if (fup.affirmPending) {
+    if (fup.affirmPending === 'build') {
+      if (!state.collected) return reply(say(persona, 'buildNeedData'), { context: clearPending(ctx), suggestions: chips('My name is Jane', 'I teach math') });
+      return reply(say(persona, 'buildGo'), { context: clearPending(ctx), build: true });
+    }
+    if (fup.affirmPending === 'section') {
+      const target = ctx.pendingText || 'testimonials';
+      return handleAddSection(target, state, ctx, persona, mem, reply, actions);
+    }
+    if (fup.affirmPending === 'theme' || fup.affirmPending === 'style') {
+      return handleThemeRequest(message, slots, state, ctx, persona, mem, reply, actions);
+    }
+  }
+  if (fup.denyPending) {
+    return reply(say(persona, 'no'), { context: clearPending(ctx), suggestions: chips('Pick a theme', 'Add sections') });
+  }
+
+  // ── "that one / it" → use the last theme we showed ──
+  if (fup.useLastTheme) {
+    const last = lastMentionedTheme(ctx);
+    if (last.themeId) {
+      const t = getThemeById(last.themeId);
+      if (t) {
+        const nextCtx = noteTheme(ctx, t.id, t.name, ctx.lastDirection.colors, ctx.lastDirection.moods, state.subject);
+        return reply(
+          say(persona, 'themeOk', { theme: `**${t.name}**`, vibe: (ctx.lastDirection.moods[0] || 'a solid educator look') }),
+          { actions: [{ type: 'theme', themeId: t.id, themeName: t.name, reasons: ['your earlier pick'] }], context: nextCtx, suggestions: chips('Build my site', 'Another option', 'Add testimonials') },
+        );
+      }
+    }
+  }
 
   // ── Greetings ──
   if (intent.intent === 'greeting') {
@@ -348,73 +492,52 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
     const suggest = state.collected
       ? chips('I want a calm blue theme', 'Add a testimonials section', 'Make it more spacious', 'Build my site')
       : chips('My name is Jane', 'I teach math', 'What can you do?');
-    return {
-      text: n
-        ? `Hey ${n}! Good to see you. I can help you pick a theme, tune the style, add sections, or build the site. What shall we do?`
-        : `Hi there! I'm your **TeacherFolio assistant**. Tell me about yourself, or ask me to pick a theme / tweak the style / add sections.`,
-      actions: [],
-      suggestions: suggest,
-    };
+    return reply(
+      n ? say(persona, 'greet', { name: n }) : say(persona, 'greetNew'),
+      { suggestions: suggest },
+    );
   }
 
   // ── Help ──
   if (intent.intent === 'help') {
     const list = CAPABILITIES.map(c => `**${c.cmd}** — ${c.what}`).join('\n');
-    return {
-      text: `Here's what I can do:\n\n${list}\n\nI can also handle a few things in one message — e.g. “a calm blue theme with rounded corners and a testimonials section”.`,
-      actions: [],
-      suggestions: chips('Make it modern', 'Serif fonts, rounded corners', 'Add FAQ'),
-    };
+    return reply(say(persona, 'help', { list }), { suggestions: chips('Make it modern', 'Serif fonts, rounded corners', 'Add FAQ') });
   }
 
   // ── Thanks ──
   if (intent.intent === 'thanks') {
-    return {
-      text: `You're welcome!${state.name ? ' ' + cap(state.name) + '!' : ''} Anything else you'd like to change?`,
-      actions: [],
-      suggestions: chips('Pick a theme', 'Add sections', 'Build my site'),
-    };
+    return reply(say(persona, 'thanks', { name: state.name ? cap(state.name) : 'there' }), { suggestions: chips('Pick a theme', 'Add sections', 'Build my site') });
   }
 
   // ── List themes ──
   if (intent.intent === 'list_themes') {
     const all = getThemeCatalog();
     const cats = Array.from(new Set(all.map(t => t.category))).slice(0, 10);
-    return {
-      text: `I have **${all.length}+ themes** across ${cats.length} color families (${cats.join(', ')}).\n\nTell me a color or mood — like “something calm and blue” or “a bold creative theme” — and I'll narrow it down.`,
-      actions: [],
+    return reply(say(persona, 'list', { count: String(all.length), families: cats.join(', ') }), {
       suggestions: chips('I want something professional', 'Make it colorful', 'A warm theme'),
-    };
+    });
   }
 
   // ── Build ──
   if (intent.intent === 'build' && !slots.alternate) {
     if (!state.collected) {
-      return {
-        text: 'Almost there — I still need your **name**, **subject**, **experience**, and a short **bio** first. Could you share those?',
-        actions: [],
-        build: false,
-      };
+      return reply(say(persona, 'buildNeedData'));
     }
-    return { text: 'On it! Let me generate your site now…', actions: [], build: true };
+    return reply(say(persona, 'buildGo'), { build: true });
   }
 
   // ── Suggest sections ──
   if (intent.intent === 'suggest_sections') {
     const recs = recommendSectionTemplates({ customSections: state.customSections } as any);
     if (recs.length === 0) {
-      return {
-        text: `Here are sections most teachers love: **testimonials**, **awards & honors**, **class resources**, and a **call to action**. Say “add a testimonial section” and I'll drop it in (pre-filled with your info).`,
-        actions: [],
+      return reply(say(persona, 'suggestNone'), {
         suggestions: chips('Add testimonials', 'Add awards', 'Add a gallery'),
-      };
+      });
     }
     const list = recs.map(r => `${findTemplate(r.templateId)?.icon || '•'} **${findTemplate(r.templateId)?.name || r.templateId}** — ${r.reason}`).join('\n');
-    return {
-      text: `Based on your content, I recommend:\n\n${list}\n\nWant me to add any of these? I'll pre-fill them from what you've told me.`,
-      actions: [],
+    return reply(say(persona, 'suggestRecs', { list }), {
       suggestions: chips(recs.slice(0, 3).map(r => `Add ${findTemplate(r.templateId)?.name || 'section'}`)),
-    };
+    });
   }
 
   // ── Combined request: theme/style + sections in one message ──
@@ -483,12 +606,15 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
     }
 
     if (actions.length > 0) {
-      return {
-        text: `Done — ${parts.join('; ')}.\n\nAnything else, or want me to **build it**?`,
+      const summary = actionSummary(actions, state);
+      const addedSections = actions.filter(a => a.type === 'section' && a.op === 'add').map(a => (a as any).templateId as string);
+      const nextCtx0 = noteSections(noteTheme(ctx, mem2.themeIds[mem2.themeIndex] || state.currentThemeId || '', mem2.lastAction === 'theme' ? (actions[0] as any).themeName || '' : state.currentThemeName || '', slots.colors, slots.moods, state.subject), addedSections);
+      const nextCtx = state.collected ? setPending(nextCtx0, 'build', 'build the site') : nextCtx0;
+      return reply(say(persona, 'combo', { summary }), {
         actions,
-        memory: mem2,
+        memory: { ...mem2, context: nextCtx },
         suggestions: chips('Build my site', 'Another theme option', 'Add another section'),
-      };
+      });
     }
   }
 
@@ -503,11 +629,10 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
       if (existing) {
         actions.push({ type: 'section', op: 'remove', sectionId: existing.id });
       } else {
-        return {
-          text: `I don't see a **${sectionDisplayName(toRemove[0])}** section on the page yet — want me to add one instead?`,
-          actions: [],
-          suggestions: chips(`Add ${sectionDisplayName(toRemove[0])}`, 'Add testimonials', 'Add FAQ'),
-        };
+        return reply(
+          `I don't see a **${sectionDisplayName(toRemove[0])}** section on the page yet — want me to add one instead?`,
+          { context: setPending(ctx, 'section', toRemove[0]), suggestions: chips(`Add ${sectionDisplayName(toRemove[0])}`, 'Add testimonials', 'Add FAQ') },
+        );
       }
     }
 
@@ -522,48 +647,42 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
     }
 
     if (actions.length === 0 && toAdd.length > 0) {
-      return {
-        text: `You already have ${toAdd.map(t => `**${sectionDisplayName(t)}**`).join(' and ')} on the page. Say “remove it” if you'd like to take it out.`,
-        actions: [],
-        suggestions: chips('Remove it', 'Add something else'),
-      };
+      return reply(
+        `You already have ${toAdd.map(t => `**${sectionDisplayName(t)}**`).join(' and ')} on the page. Say “remove it” if you'd like to take it out.`,
+        { suggestions: chips('Remove it', 'Add something else') },
+      );
     }
 
     const lastSec = actions[actions.length - 1];
     const mem2 = { ...mem, lastAction: 'section' as const, lastSectionId: lastSec && lastSec.type === 'section' && lastSec.op === 'add' ? lastSec.sectionId : mem.lastSectionId };
     const addedNames = toAdd.map(t => `**${sectionDisplayName(t)}**`).join(', ');
+    const nextCtx = noteSections(clearPending(ctx), toAdd);
     const text = toRemove.length > 0
-      ? `Removed the **${sectionDisplayName(toRemove[0])}** section.${addedNames ? ` Also added ${addedNames}.` : ''}`
-      : `Done! I added ${addedNames}${toAdd.length > 1 ? '' : ' — pre-filled from your profile'}.`;
-    return { text, actions, memory: mem2, suggestions: chips('Add another section', 'Build my site', 'Make it more spacious') };
+      ? `${say(persona, 'sectionRemove', { section: sectionDisplayName(toRemove[0]) })}${addedNames ? ` Also added ${addedNames}.` : ''}`
+      : toAdd.length === 1
+        ? say(persona, 'sectionAdd', { section: sectionDisplayName(toAdd[0]) })
+        : `Done! I added ${addedNames}.`;
+    return reply(text, { actions, memory: mem2, context: nextCtx, suggestions: chips('Add another section', 'Build my site', 'Make it more spacious') });
   }
 
   // ── Undo ──
   if (intent.intent === 'undo') {
     if (mem.lastAction === 'theme' && mem.prevThemeId) {
       const prev = getThemeById(mem.prevThemeId);
-      return {
-        text: prev
-          ? `Undone — I switched you back to **${prev.name}**.`
-          : `Undone — reverted your last theme change.`,
+      return reply(say(persona, 'undoTheme', { theme: prev?.name || mem.prevThemeName || 'previous theme' }), {
         actions: [{ type: 'theme', themeId: mem.prevThemeId, themeName: mem.prevThemeName || 'previous theme', reasons: ['as before'] }],
-        memory: { ...emptyMemory(), themeIds: mem.themeIds, themeIndex: mem.themeIndex },
+        memory: { ...emptyMemory(), themeIds: mem.themeIds, themeIndex: mem.themeIndex, context: ctx, persona },
         suggestions: chips('Build my site', 'Pick a theme'),
-      };
+      });
     }
     if (mem.lastAction === 'section' && mem.lastSectionId) {
-      return {
-        text: `Undone — I removed the section I just added.`,
+      return reply(say(persona, 'undoSection'), {
         actions: [{ type: 'section', op: 'remove', sectionId: mem.lastSectionId }],
         memory: { ...mem, lastAction: 'section', lastSectionId: undefined },
         suggestions: chips('Build my site', 'Pick a theme'),
-      };
+      });
     }
-    return {
-      text: 'Nothing to undo yet — once you make a change, I can revert it for you.',
-      actions: [],
-      suggestions: chips('Pick a theme', 'Add sections'),
-    };
+    return reply(say(persona, 'undoNone'), { suggestions: chips('Pick a theme', 'Add sections') });
   }
 
   // ── Alternate theme follow-up ──
@@ -574,10 +693,11 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
       actions.push(res.action);
       const action = res.action as Extract<AssistantAction, { type: 'theme' }>;
       const why = themeWhy(action, res.note);
+      const nextCtx = noteTheme(ctx, action.themeId, action.themeName, slots.colors, slots.moods, state.subject);
       return {
-        text: `${res.note ? res.note + '\n\n' : ''}I found ${describeTheme(action.themeName ? getThemeById(action.themeId) : null)}\n\nWhy: ${why}\n\nSay “another one” to see more options.`,
+        text: `${res.note ? res.note + '\n\n' : ''}${say(persona, 'alternate', { theme: describeTheme(action.themeName ? getThemeById(action.themeId) : null) })}\n\nWhy: ${why}\n\nSay “another one” to see more options.`,
         actions,
-        memory: res.memory,
+        memory: { ...res.memory, context: nextCtx, persona },
         suggestions: chips('Another one', 'Add testimonials', 'Build my site'),
       };
     }
@@ -588,14 +708,15 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
       return {
         text: t0 ? `That's all the themes in that direction. Back to the first one: **${t0.name}**.` : 'I\'ve run out of alternates in that direction — try a different color or mood.',
         actions: t0 ? [{ type: 'theme', themeId: t0.id, themeName: t0.name, reasons: ['as requested'] }] : [],
-        memory: { ...mem, themeIndex: 0 },
+        memory: { ...mem, themeIndex: 0, context: ctx, persona },
         suggestions: chips('Calm blue', 'Professional', 'Add testimonials'),
       };
     }
     const reasons = themeReason(t, { color: slots.colors[0], mood: slots.moods[0], subject: state.subject });
     const prevChosen = idx > 0 ? getThemeById(mem.themeIds[idx - 1]) : null;
+    const nextCtx = noteTheme(ctx, t.id, t.name, slots.colors, slots.moods, state.subject);
     return {
-      text: `Here's another option: ${describeTheme(t)}\n\nWhy: ${reasons.slice(0, 2).join('; ') || 'it continues the same direction you were exploring.'}`,
+      text: `${say(persona, 'alternate', { theme: describeTheme(t) })}\n\nWhy: ${reasons.slice(0, 2).join('; ') || 'it continues the same direction you were exploring.'}`,
       actions: [{ type: 'theme', themeId: t.id, themeName: t.name, reasons }],
       memory: {
         ...mem,
@@ -603,6 +724,8 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
         prevThemeName: prevChosen ? prevChosen.name : (state.currentThemeName || mem.prevThemeName),
         themeIndex: idx,
         lastAction: 'theme',
+        context: nextCtx,
+        persona,
       },
       suggestions: chips('Another one', 'Add testimonials', 'Build my site'),
     };
@@ -622,13 +745,15 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
 
     const prev = state.currentThemeName && state.currentThemeId !== action.themeId ? ` (was ${state.currentThemeName})` : '';
     const followUp = state.collected
-      ? ` Want me to build it now, or keep polishing the details?`
+      ? `\n\n${say(persona, 'followUp')}`
       : ` Tell me your name/subject next and I'll finish your profile.`;
 
+    const nextCtx0 = noteTheme(ctx, action.themeId, action.themeName, slots.colors, slots.moods, state.subject);
+    const nextCtx = state.collected ? setPending(nextCtx0, 'build', 'build the site') : nextCtx0;
     return {
-      text: `${res.note ? res.note + '\n\n' : ''}I picked ${describeTheme(action.themeName ? getThemeById(action.themeId) : null)}${prev}\n\nWhy: ${why}${extras.length ? `\n\nI also noticed you mentioned style/sections — just say “and rounded corners with a testimonials section” and I'll apply both.` : ''}${followUp}`,
+      text: `${res.note ? res.note + '\n\n' : ''}${say(persona, 'themeOk', { theme: `**${action.themeName}**`, vibe: (slots.moods[0] || state.subject || 'a designed educator look') })}${prev}\n\nWhy: ${why}${extras.length ? `\n\nI also noticed you mentioned style/sections — just say “and rounded corners with a testimonials section” and I'll apply both.` : ''}${followUp}`,
       actions,
-      memory: res.memory,
+      memory: { ...res.memory, context: nextCtx, persona },
       suggestions: chips('Another one', 'Serif fonts, rounded corners', 'Add testimonials', 'Build my site'),
     };
   }
@@ -661,30 +786,33 @@ export function runAssistant(message: string, state: AssistantState): AssistantR
     const mem2 = { ...mem, lastAction: 'style' as const, lastStylePatch: patch };
     const ack = styleAck(patch);
     const extraSec = slots.sectionsToAdd.length > 0 ? ` I also added ${slots.sectionsToAdd.map(t => `**${sectionDisplayName(t)}**`).join(', ')}.` : '';
-    const text = `Great — I ${ack}.${extraSec}\n\nAnything else? You can keep tweaking, or say “build my site”.`;
-    return { text, actions, memory: mem2, suggestions: chips('Build my site', 'Add a gallery', 'Make it more spacious') };
+    const text = `${say(persona, 'styleOk', { style: ack })}${extraSec}\n\nWant me to keep going?`;
+    return { text, actions, memory: { ...mem2, persona }, suggestions: chips('Build my site', 'Add a gallery', 'Make it more spacious') };
   }
 
   // ── Yes / No ──
   if (intent.intent === 'yes') {
     return {
-      text: state.collected ? 'Great — say **“build my site”** and I\'ll generate it!' : 'Let\'s get started! **What\'s your name?**',
+      text: state.collected ? say(persona, 'yesBuilt') : say(persona, 'yesAskName'),
       actions: [],
+      memory: { ...mem, persona },
       suggestions: chips('Build my site'),
     };
   }
   if (intent.intent === 'no') {
     return {
-      text: 'No problem — we can adjust anything later. Just tell me what you\'d like.',
+      text: say(persona, 'no'),
       actions: [],
+      memory: { ...mem, persona },
       suggestions: chips('Pick a theme', 'Add sections'),
     };
   }
 
   // ── Fallback / clarify ──
   return {
-    text: 'I want to make sure I get this right. I can help you **pick a theme**, **tweak the style**, **add sections**, or **build the site**. Could you rephrase, or pick one of these?',
+    text: say(persona, 'clarify'),
     actions: [],
+    memory: { ...mem, persona },
     suggestions: chips('I want a calm blue theme', 'Make it modern', 'Add testimonials', 'Build my site'),
   };
 }
