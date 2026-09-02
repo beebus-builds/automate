@@ -5,16 +5,11 @@ import { runBuild } from './db';
 const inFlight = new Map<string, Promise<string>>();
 const REBUILD_TTL_MS = 30_000;
 
-function siteDir(teacherId?: number): string {
-  return path.join(
-    process.cwd(),
-    'public',
-    '_site',
-    teacherId ? String(teacherId) : ''
-  );
+function siteDir(teacherId: number): string {
+  return path.join(process.cwd(), 'public', '_site', String(teacherId));
 }
 
-function markerFile(teacherId?: number): string {
+function markerFile(teacherId: number): string {
   return path.join(siteDir(teacherId), '.built');
 }
 

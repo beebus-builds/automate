@@ -43,7 +43,7 @@ if (USE_PG) {
       `CREATE TABLE IF NOT EXISTS chat_state (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, messages JSONB NOT NULL DEFAULT '[]', step TEXT NOT NULL DEFAULT 'name', data JSONB NOT NULL DEFAULT '{}', updated_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS pending_calls (id SERIAL PRIMARY KEY, teacher_name TEXT NOT NULL DEFAULT 'Teacher', room_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'ringing', answered_by INTEGER REFERENCES users(id) ON DELETE SET NULL, answered_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS media (id SERIAL PRIMARY KEY, filename TEXT NOT NULL, original_name TEXT NOT NULL, size INTEGER NOT NULL, user_id INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`,
-      `CREATE TABLE IF NOT EXISTS history (id SERIAL PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS history (id SERIAL PRIMARY KEY, data JSONB NOT NULL, user_id INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS visitor_messages (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, text TEXT NOT NULL, sender TEXT DEFAULT 'visitor', created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS rate_limits (rl_key TEXT PRIMARY KEY, hits INTEGER NOT NULL DEFAULT 0, window_start TIMESTAMPTZ NOT NULL)`,
     ];
@@ -51,6 +51,7 @@ if (USE_PG) {
       await pgPool.query(sql);
     }
     await pgPool.query('ALTER TABLE media ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0');
+    await pgPool.query('ALTER TABLE history ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0');
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
   }
@@ -148,9 +149,15 @@ if (USE_PG) {
     CREATE TABLE IF NOT EXISTS history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       data TEXT NOT NULL,
+      user_id INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
   `));
+  try {
+    db.exec(c('ALTER TABLE history ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0'));
+  } catch {
+    // column already exists on fresh or migrated dbs
+  }
   db.exec(c(`
     CREATE TABLE IF NOT EXISTS visitor_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -185,38 +192,22 @@ async function queryJson(sql: string, params?: any[]): Promise<any> {
   return row;
 }
 
-export async function getContent(userId?: number): Promise<any> {
-  if (userId) {
-    const row = await queryJson('SELECT data FROM user_content WHERE user_id = $1', [userId]);
-    if (row) return row.data;
-  }
-  const row = await queryJson('SELECT data FROM content WHERE id = 1');
+export async function getContent(userId: number): Promise<any> {
+  const row = await queryJson('SELECT data FROM user_content WHERE user_id = $1', [userId]);
   return row ? row.data : {};
 }
 
-export async function saveContent(data: any, userId?: number): Promise<void> {
+export async function saveContent(data: any, userId: number): Promise<void> {
   const json = JSON.stringify(data);
   if (backend === 'pg') {
-    if (userId) {
-      await pool.query(
-        "INSERT INTO user_content (user_id, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (user_id) DO UPDATE SET data = $2, updated_at = NOW()",
-        [userId, json]
-      );
-    }
     await pool.query(
-      'INSERT INTO content (id, data) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET data = $1',
-      [json]
+      "INSERT INTO user_content (user_id, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (user_id) DO UPDATE SET data = $2, updated_at = NOW()",
+      [userId, json]
     );
   } else {
-    if (userId) {
-      await pool.query(
-        "INSERT INTO user_content (user_id, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
-        [userId, json]
-      );
-    }
     await pool.query(
-      'INSERT INTO content (id, data) VALUES (1, $1) ON CONFLICT(id) DO UPDATE SET data = excluded.data',
-      [json]
+      "INSERT INTO user_content (user_id, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
+      [userId, json]
     );
   }
 }
@@ -283,20 +274,24 @@ export async function deleteMedia(id: number, userId = 0): Promise<boolean> {
   return true;
 }
 
-export async function pushHistory(data: any): Promise<void> {
+export async function pushHistory(data: any, userId: number): Promise<void> {
   await pool.query(
-    "DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY id DESC LIMIT 19)"
+    "DELETE FROM history WHERE user_id = $1 AND id NOT IN (SELECT id FROM history WHERE user_id = $2 ORDER BY id DESC LIMIT 19)",
+    [userId, userId]
   );
-  await pool.query('INSERT INTO history (data) VALUES ($1)', [JSON.stringify(data)]);
+  await pool.query('INSERT INTO history (data, user_id) VALUES ($1, $2)', [JSON.stringify(data), userId]);
 }
 
-export async function getHistory(): Promise<string[]> {
-  const { rows } = await pool.query('SELECT data FROM history ORDER BY id ASC');
+export async function getHistory(userId: number): Promise<string[]> {
+  const { rows } = await pool.query('SELECT data FROM history WHERE user_id = $1 ORDER BY id ASC', [userId]);
   return rows.map((r: any) => r.data);
 }
 
-export async function popHistory(): Promise<any | null> {
-  const { rows: recent } = await pool.query('SELECT id, data FROM history ORDER BY id DESC LIMIT 2');
+export async function popHistory(userId: number): Promise<any | null> {
+  const { rows: recent } = await pool.query(
+    'SELECT id, data FROM history WHERE user_id = $1 ORDER BY id DESC LIMIT 2',
+    [userId]
+  );
   if (recent.length < 2) return null;
   await pool.query('DELETE FROM history WHERE id = $1', [recent[0].id]);
   return JSON.parse(recent[1].data);
@@ -675,19 +670,12 @@ const NAV_LABELS: Record<string, string> = {
 
 // ─── main build function ────────────────────────────────────
 
-export async function runBuild(data: any, teacherId?: number): Promise<string> {
+export async function runBuild(data: any, teacherId: number): Promise<string> {
   const fs = require('fs');
   const path = require('path');
-  const distDir = teacherId
-    ? path.join(process.cwd(), 'public', '_site', String(teacherId))
-    : path.join(process.cwd(), 'public', '_site');
+  const distDir = path.join(process.cwd(), 'public', '_site', String(teacherId));
 
-  if (teacherId) {
-    // Per-teacher dir: rebuild in place
-    if (fs.existsSync(distDir)) {
-      fs.rmSync(distDir, { recursive: true });
-    }
-  } else if (fs.existsSync(distDir)) {
+  if (fs.existsSync(distDir)) {
     fs.rmSync(distDir, { recursive: true });
   }
 
@@ -943,12 +931,10 @@ export async function runBuild(data: any, teacherId?: number): Promise<string> {
   }
 
   // Inject teacher ID and chat widget script
-  const siteUrl = teacherId
-    ? `/s/${teacherId}`
-    : '/site-preview';
-  html = html.replace(/{{TEACHER_ID}}/g, teacherId ? String(teacherId) : '0');
+  const siteUrl = `/s/${teacherId}`;
+  html = html.replace(/{{TEACHER_ID}}/g, String(teacherId));
   html = html.replace('</body>', `
-<div class="chat-widget" id="chatWidget" data-teacher-id="${teacherId || 0}" data-site-url="${siteUrl}">
+<div class="chat-widget" id="chatWidget" data-teacher-id="${teacherId}" data-site-url="${siteUrl}">
   <button class="chat-widget__toggle" id="chatToggle" aria-label="Chat">
     <svg class="chat-widget__icon-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     <svg class="chat-widget__icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
