@@ -1,14 +1,23 @@
 import { NextResponse } from 'next/server';
-import { getContent, runBuild } from '@/lib/db';
+import { getContent } from '@/lib/db';
+import { ensureSiteBuild } from '@/lib/builder';
+import { getSessionUser } from '@/lib/auth';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+// Builds tie up CPU/disk and are a classic DoS vector — authenticated only.
 export async function POST() {
   try {
-    console.log('API /api/build was called');
+    const user = await getSessionUser();
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
     const data = await getContent();
-    const msg = await runBuild(data);
-    return NextResponse.json({ message: msg });
-  } catch (err: any) {
-    console.error('API Error:', err);
-    return NextResponse.json({ error: err instanceof Error ? err.message : String(err) }, { status: 500 });
+    const result = await ensureSiteBuild(data, undefined, true);
+    return NextResponse.json({ message: result.message });
+  } catch (err) {
+    console.error('Build error:', err);
+    return NextResponse.json({ error: 'Build failed' }, { status: 500 });
   }
 }

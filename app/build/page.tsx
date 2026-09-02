@@ -263,7 +263,7 @@ export default function BuildPage() {
       await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       await fetch('/api/build', { method: 'POST' });
       clearInterval(stepTimer);
-      setDownloadUrl(`/api/download?name=${encodeURIComponent(data.name || 'Teacher')}&_=${Date.now()}`);
+      setDownloadUrl(`/api/download?name=${encodeURIComponent(data.name || 'Teacher')}`);
       if (user?.id) setPublicUrl(`/s/${user.id}`);
       setBuilt(true);
       addBot('Your website has been generated!');

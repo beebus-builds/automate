@@ -22,15 +22,10 @@ export function CallPanel({ teacherName }: Props) {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const durationRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const remoteConnected = useRef(false);
   const callStateRef = useRef<CallState>('idle');
+  const [remoteConnected, setRemoteConnected] = useState(false);
+  const [hasLocalStream, setHasLocalStream] = useState(false);
   const setState = (s: CallState) => { callStateRef.current = s; setCallStateInner(s); };
-
-  useEffect(() => {
-    return () => {
-      endCall();
-    };
-  }, []);
 
   const startDuration = () => {
     stopDuration();
@@ -49,7 +44,7 @@ export function CallPanel({ teacherName }: Props) {
   const endCall = useCallback(() => {
     stopDuration();
     setDuration(0);
-    remoteConnected.current = false;
+    setRemoteConnected(false);
 
     if (pcRef.current) {
       pcRef.current.close();
@@ -59,7 +54,7 @@ export function CallPanel({ teacherName }: Props) {
       localStreamRef.current.getTracks().forEach(t => t.stop());
       localStreamRef.current = null;
     }
-    remoteStreamRef.current = null;
+    setHasLocalStream(false);
     if (wsRef.current) {
       if (roomId) {
         wsRef.current.send(JSON.stringify({ type: 'end_call', room: roomId }));
@@ -67,15 +62,15 @@ export function CallPanel({ teacherName }: Props) {
       wsRef.current.close();
       wsRef.current = null;
     }
-    // End the call request in DB
-    fetch('/api/calls', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'request', teacherName, roomId, status: 'ended' }),
-    }).catch(() => {});
     setState('idle');
     setRoomId('');
   }, [roomId]);
+
+  useEffect(() => {
+    return () => {
+      endCall();
+    };
+  }, [endCall]);
 
   const startCall = async (video: boolean) => {
     if (callState !== 'idle') return;
@@ -86,13 +81,25 @@ export function CallPanel({ teacherName }: Props) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video });
       localStreamRef.current = stream;
+      setHasLocalStream(true);
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
+      // Get the server-issued teacher token (required by the signaling server).
+      const tokenRes = await fetch('/api/signaling-token', { credentials: 'include' });
+      const tokenBody = await tokenRes.json();
+      if (!tokenRes.ok || !tokenBody.token) {
+        setState('idle');
+        setHasLocalStream(false);
+        stream.getTracks().forEach(t => t.stop());
+        localStreamRef.current = null;
+        return;
+      }
 
       const ws = new WebSocket(SIGNAL_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'join', role: 'teacher' }));
+        ws.send(JSON.stringify({ type: 'join', role: 'teacher', token: tokenBody.token }));
       };
 
       ws.onmessage = async (event) => {
@@ -155,6 +162,7 @@ export function CallPanel({ teacherName }: Props) {
 
     } catch {
       setState('idle');
+      setHasLocalStream(false);
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(t => t.stop());
         localStreamRef.current = null;
@@ -177,7 +185,7 @@ export function CallPanel({ teacherName }: Props) {
     };
 
     pc.ontrack = (e) => {
-      remoteConnected.current = true;
+      setRemoteConnected(true);
       remoteStreamRef.current = e.streams[0];
       if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = e.streams[0];
@@ -246,12 +254,12 @@ export function CallPanel({ teacherName }: Props) {
           autoPlay playsInline
           style={{
             position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-            display: remoteConnected.current ? 'block' : 'none',
+            display: remoteConnected ? 'block' : 'none',
           }}
         />
 
         {/* Connecting / waiting overlay */}
-        {!remoteConnected.current && (
+        {!remoteConnected && (
           <div style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
             <div style={{
               width: 80, height: 80, borderRadius: '50%', margin: '0 auto 16px',
@@ -280,7 +288,7 @@ export function CallPanel({ teacherName }: Props) {
         )}
 
         {/* Connected overlay */}
-        {remoteConnected.current && (
+        {remoteConnected && (
           <div style={{
             position: 'absolute', top: 20, left: 20, right: 20,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 2,
@@ -307,7 +315,7 @@ export function CallPanel({ teacherName }: Props) {
         )}
 
         {/* Audio-only local avatar */}
-        {!isVideo && localStreamRef.current && (
+        {!isVideo && hasLocalStream && (
           <div style={{
             position: 'absolute', bottom: 100, right: 20, zIndex: 2,
             width: 60, height: 60, borderRadius: '50%',

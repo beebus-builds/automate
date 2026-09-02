@@ -1,73 +1,78 @@
-const CACHE = 'tf-cache-v1';
+const CACHE = 'tf-cache-v2';
 const STATIC = [
-  '/',
-  '/build',
-  '/cms',
-  '/calls',
   '/manifest.json',
-  '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => {
-      return cache.addAll(STATIC).catch(() => {});
-    })
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(STATIC))
+      .catch(() => {})
   );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      )
+      .then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    event.respondWith(fetch(request));
+  // Only handle simple same-origin GETs. Anything else goes straight to the
+  // network WITHOUT interception so no request can ever break.
+  if (
+    request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
+    (url.protocol !== 'http:' && url.protocol !== 'https:')
+  ) {
     return;
   }
 
-  // Skip non-http(s) requests (e.g., chrome-extension://)
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    event.respondWith(fetch(request));
-    return;
-  }
-
-  // API calls — network first, cache fallback
+  // Never intercept API/auth requests — caching those breaks sessions.
   if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
+    return;
+  }
+
+  event.respondWith(handleRequest(request));
+});
+
+async function handleRequest(request) {
+  try {
+    const cached = await caches.match(request);
+    if (cached) {
+      // Stale-while-revalidate: serve the cache, refresh it in the background.
       fetch(request)
         .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, clone));
-          return res;
+          if (res && res.ok) {
+            return caches.open(CACHE).then((cache) => cache.put(request, res));
+          }
         })
-        .catch(() => caches.match(request))
-    );
-    return;
-  }
+        .catch(() => {});
+      return cached;
+    }
 
-  // Static Next.js assets — cache first
-  if (url.pathname.startsWith('/_next/') || url.pathname.startsWith('/__nextjs/')) {
-    event.respondWith(
-      caches.match(request).then((cached) => cached || fetch(request))
-    );
-    return;
+    const res = await fetch(request);
+    if (res && res.ok) {
+      const clone = res.clone();
+      caches.open(CACHE).then((cache) => cache.put(request, clone)).catch(() => {});
+    }
+    return res;
+  } catch (err) {
+    // Never reject the respondWith promise — that surfaces as
+    // "FetchEvent resulted in a network error response" and kills the page.
+    const cached = await caches.match(request).catch(() => undefined);
+    return cached || Response.error();
   }
-
-  // Pages and static files — cache first
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE).then((cache) => cache.put(request, clone));
-        return res;
-      });
-    })
-  );
-});
+}

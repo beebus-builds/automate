@@ -9,3 +9,15 @@ backup-cms/
 
 .env
 .env.local
+
+# Data / build artifacts
+data/
+out/
+*.tsbuildinfo
+*.eslintcache
+coverage/
+
+# Python
+python-server/.venv/
+__pycache__/
+*.pyc

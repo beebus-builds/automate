@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getContent, runBuild } from '@/lib/db';
+import { getContent } from '@/lib/db';
+import { ensureSiteBuild } from '@/lib/builder';
 import fs from 'fs';
 import path from 'path';
 
@@ -24,20 +25,28 @@ export async function GET(
   try {
     const resolvedParams = await params;
     const pathSegments = resolvedParams.path || [];
-    const relativePath = pathSegments.join('/');
     const siteDir = path.join(process.cwd(), 'public', '_site');
-    let targetPath = path.join(siteDir, relativePath);
+
+    const data = await getContent();
+    await ensureSiteBuild(data, undefined, false);
 
     if (!fs.existsSync(path.join(siteDir, 'index.html'))) {
-      const data = await getContent();
-      await runBuild(data);
+      return NextResponse.json({ error: 'Site not built' }, { status: 500 });
+    }
+
+    let targetPath = path.resolve(siteDir, ...pathSegments);
+
+    // Path-traversal guard: resolved path must stay inside the site root.
+    const rootWithSep = siteDir.endsWith(path.sep) ? siteDir : siteDir + path.sep;
+    if (targetPath !== siteDir && !targetPath.startsWith(rootWithSep)) {
+      return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
     if (fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()) {
       targetPath = path.join(targetPath, 'index.html');
     }
 
-    if (fs.existsSync(targetPath)) {
+    if (fs.existsSync(targetPath) && fs.statSync(targetPath).isFile()) {
       const ext = path.extname(targetPath).toLowerCase();
       const contentType = mimeTypes[ext] || 'application/octet-stream';
       const fileBuffer = fs.readFileSync(targetPath);
@@ -45,14 +54,15 @@ export async function GET(
       return new NextResponse(new Uint8Array(fileBuffer), {
         headers: {
           'Content-Type': contentType,
+          'X-Content-Type-Options': 'nosniff',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
       });
     }
 
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
-  } catch (err: any) {
-    console.error('Preview error:', err.message);
-    return NextResponse.json({ error: `Preview error: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    console.error('Preview error:', err);
+    return NextResponse.json({ error: 'Preview failed' }, { status: 500 });
   }
 }

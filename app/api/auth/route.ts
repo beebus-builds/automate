@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
 import { hashPassword, verifyPassword, createSession, getSessionUser, clearSession, rotateSession } from '@/lib/auth';
+import { clientIp, rateLimit } from '@/lib/rate-limit';
 
 function validateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
@@ -17,20 +18,6 @@ function sanitizeName(name: string): string {
   return name.replace(/[<>"'&]/g, '').trim().slice(0, 100);
 }
 
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(ip: string, maxAttempts = 10, windowMs = 60000): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (entry.count >= maxAttempts) return false;
-  entry.count++;
-  return true;
-}
-
 export async function GET() {
   const user = await getSessionUser();
   return NextResponse.json({ user: user || null });
@@ -38,9 +25,13 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    if (!checkRateLimit(ip)) {
-      return NextResponse.json({ error: 'Too many requests. Please wait before trying again.' }, { status: 429 });
+    const ip = clientIp(request.headers);
+    const rl = await rateLimit(`auth:${ip}`, 10, 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({
+        error: 'Too many requests. Please wait before trying again.',
+        retryAfter: Math.ceil((rl.retryAfterMs || 60_000) / 1000),
+      }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterMs ? Math.ceil(rl.retryAfterMs / 1000) : 60) } });
     }
 
     const body = await request.json();

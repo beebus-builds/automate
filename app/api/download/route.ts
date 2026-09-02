@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getContent, runBuild } from '@/lib/db';
-const { ZipArchive } = require('archiver');
-import path from 'path';
-import fs from 'fs';
+import { getContent } from '@/lib/db';
+import { ensureSiteBuild } from '@/lib/builder';
+import { getSessionUser } from '@/lib/auth';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const siteDir = path.join(process.cwd(), 'public', '_site');
-
-    if (!fs.existsSync(path.join(siteDir, 'index.html'))) {
-      const data = await getContent();
-      await runBuild(data);
+    const user = await getSessionUser();
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    if (!fs.existsSync(path.join(siteDir, 'index.html'))) {
+    const data = await getContent();
+    await ensureSiteBuild(data, undefined, false);
+
+    const siteDirFor = require('path').join(process.cwd(), 'public', '_site');
+    const fs = require('fs');
+    if (!fs.existsSync(require('path').join(siteDirFor, 'index.html'))) {
       return NextResponse.json({ error: 'No built site found. Generate your site first.' }, { status: 400 });
     }
 
@@ -21,7 +26,7 @@ export async function GET(request: NextRequest) {
     const safeName = teacherName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'teacher';
 
     const chunks: Buffer[] = [];
-    const archive = new ZipArchive({ zlib: { level: 9 } });
+    const archive = new (require('archiver').ZipArchive)({ zlib: { level: 9 } });
 
     archive.on('data', (chunk: Buffer) => chunks.push(chunk));
 
@@ -30,7 +35,7 @@ export async function GET(request: NextRequest) {
       archive.on('error', (err: any) => reject(err));
     });
 
-    archive.directory(siteDir, `${safeName}-portfolio`);
+    archive.directory(siteDirFor, `${safeName}-portfolio`);
     archive.finalize();
 
     await promise;
@@ -43,11 +48,11 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${safeName}-portfolio.zip"`,
         'Content-Length': zipBuffer.length.toString(),
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-store',
       },
     });
-  } catch (err: any) {
-    console.error('Download error:', err.message);
-    return NextResponse.json({ error: `Download failed: ${err.message}` }, { status: 500 });
+  } catch (err) {
+    console.error('Download error:', err);
+    return NextResponse.json({ error: 'Failed to create download' }, { status: 500 });
   }
 }

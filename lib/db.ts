@@ -3,7 +3,7 @@ import fs from 'fs';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-const DB_PATH = path.join(process.cwd(), 'data', 'teacher.db');
+const DB_PATH = process.env.TEACHER_DB_PATH || path.join(process.cwd(), 'data', 'teacher.db');
 const USE_PG = process.env.USE_POSTGRES === 'true' && !!process.env.DATABASE_URL;
 
 function c(sql: string): string {
@@ -42,13 +42,15 @@ if (USE_PG) {
       `CREATE TABLE IF NOT EXISTS user_content (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, data JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS chat_state (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, messages JSONB NOT NULL DEFAULT '[]', step TEXT NOT NULL DEFAULT 'name', data JSONB NOT NULL DEFAULT '{}', updated_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS pending_calls (id SERIAL PRIMARY KEY, teacher_name TEXT NOT NULL DEFAULT 'Teacher', room_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'ringing', answered_by INTEGER REFERENCES users(id) ON DELETE SET NULL, answered_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())`,
-      `CREATE TABLE IF NOT EXISTS media (id SERIAL PRIMARY KEY, filename TEXT NOT NULL, original_name TEXT NOT NULL, size INTEGER NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS media (id SERIAL PRIMARY KEY, filename TEXT NOT NULL, original_name TEXT NOT NULL, size INTEGER NOT NULL, user_id INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS history (id SERIAL PRIMARY KEY, data JSONB NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS visitor_messages (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, text TEXT NOT NULL, sender TEXT DEFAULT 'visitor', created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS rate_limits (rl_key TEXT PRIMARY KEY, hits INTEGER NOT NULL DEFAULT 0, window_start TIMESTAMPTZ NOT NULL)`,
     ];
     for (const sql of tables) {
       await pgPool.query(sql);
     }
+    await pgPool.query('ALTER TABLE media ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0');
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
   }
@@ -133,9 +135,15 @@ if (USE_PG) {
       filename TEXT NOT NULL,
       original_name TEXT NOT NULL,
       size INTEGER NOT NULL,
+      user_id INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
   `));
+  try {
+    db.exec(c('ALTER TABLE media ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0'));
+  } catch {
+    // column already exists on fresh or migrated dbs
+  }
   db.exec(c(`
     CREATE TABLE IF NOT EXISTS history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -150,6 +158,13 @@ if (USE_PG) {
       text TEXT NOT NULL,
       sender TEXT DEFAULT 'visitor',
       created_at TEXT DEFAULT (datetime('now'))
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      rl_key TEXT PRIMARY KEY,
+      hits INTEGER NOT NULL DEFAULT 0,
+      window_start TEXT NOT NULL
     );
   `));
   const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
@@ -236,25 +251,35 @@ export async function saveChatState(userId: number, messages: any, step: string,
   }
 }
 
-export async function getMediaList(): Promise<any[]> {
+export async function getMediaList(userId?: number): Promise<any[]> {
+  if (userId) {
+    const { rows } = await pool.query(
+      'SELECT * FROM media WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId]
+    );
+    return rows;
+  }
   const { rows } = await pool.query('SELECT * FROM media ORDER BY created_at DESC');
   return rows;
 }
 
-export async function addMedia(filename: string, originalName: string, size: number): Promise<any> {
+export async function addMedia(filename: string, originalName: string, size: number, userId = 0): Promise<any> {
   const { rows } = await pool.query(
-    'INSERT INTO media (filename, original_name, size) VALUES ($1, $2, $3) RETURNING *',
-    [filename, originalName, size]
+    'INSERT INTO media (filename, original_name, size, user_id) VALUES ($1, $2, $3, $4) RETURNING *',
+    [filename, originalName, size, userId]
   );
   return rows[0];
 }
 
-export async function deleteMedia(id: number): Promise<boolean> {
-  const { rows } = await pool.query('SELECT filename FROM media WHERE id = $1', [id]);
+export async function deleteMedia(id: number, userId = 0): Promise<boolean> {
+  const { rows } = await pool.query(
+    'SELECT filename FROM media WHERE id = $1 AND user_id = $2',
+    [id, userId]
+  );
   if (rows.length === 0) return false;
   const filePath = path.join(process.cwd(), 'public', 'uploads', rows[0].filename);
   if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  await pool.query('DELETE FROM media WHERE id = $1', [id]);
+  await pool.query('DELETE FROM media WHERE id = $1 AND user_id = $2', [id, userId]);
   return true;
 }
 
@@ -1265,6 +1290,7 @@ export async function runBuild(data: any, teacherId?: number): Promise<string> {
   fs.writeFileSync(path.join(distDirCss, 'style.css'), css);
 
   // Append chat widget JS to script.js
+  const signalUrl = process.env.NEXT_PUBLIC_SIGNALING_URL || 'ws://127.0.0.1:8765/ws/signal';
   const chatJs = `
 (function() {
   'use strict';
@@ -1300,6 +1326,7 @@ export async function runBuild(data: any, teacherId?: number): Promise<string> {
   //  State
   // ════════════════════════════════════════════════
   var isAdmin = false;
+  var signalTeacherToken = null;
   var chatOpen = false;
   var inCall = false;
   var callStartTime = null;
@@ -1312,7 +1339,7 @@ export async function runBuild(data: any, teacherId?: number): Promise<string> {
   var peerConn = null;
   var currentRoom = null;
 
-  var SIGNAL_URL = 'ws://127.0.0.1:8765/ws/signal';
+  var SIGNAL_URL = '{{SIGNAL_URL}}';
 
   if (!toggle) return;
 
@@ -1332,7 +1359,18 @@ export async function runBuild(data: any, teacherId?: number): Promise<string> {
           badge.textContent = 'Online';
           document.querySelector('.chat-widget__title')?.appendChild(badge);
         }
-        connectSignaling('teacher');
+        // Teacher joins the signaling server only with a valid server-issued token
+        fetch('/api/signaling-token', { credentials: 'include' })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.token) {
+              signalTeacherToken = d.token;
+              connectSignaling('teacher');
+            } else {
+              addMsg('Call service is not configured. Text messaging still works.', 'bot');
+            }
+          })
+          .catch(function() {});
       }
     })
     .catch(function() {});
@@ -1366,7 +1404,12 @@ export async function runBuild(data: any, teacherId?: number): Promise<string> {
     } catch(e) { return; }
 
     signalingWs.onopen = function() {
-      signalingWs.send(JSON.stringify({ type: 'join', role: role }));
+      var join = { type: 'join', role: role };
+      if (role === 'teacher') {
+        if (!signalTeacherToken) { signalingWs.close(); return; }
+        join.token = signalTeacherToken;
+      }
+      signalingWs.send(JSON.stringify(join));
     };
 
     signalingWs.onmessage = function(event) {
@@ -1666,7 +1709,7 @@ export async function runBuild(data: any, teacherId?: number): Promise<string> {
   document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && inCall) endCall(); });
 })();
 `;
-  fs.writeFileSync(path.join(distDirJs, 'script.js'), jsSrc + '\n' + chatJs);
+  fs.writeFileSync(path.join(distDirJs, 'script.js'), jsSrc + '\n' + chatJs.replace('{{SIGNAL_URL}}', signalUrl));
 
   return teacherId
     ? 'Site built! Live at /s/' + teacherId

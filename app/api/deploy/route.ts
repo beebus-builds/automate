@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getContent, runBuild } from '@/lib/db';
+import { getContent } from '@/lib/db';
+import { ensureSiteBuild } from '@/lib/builder';
 import { getSessionUser } from '@/lib/auth';
 import path from 'path';
 import fs from 'fs';
@@ -27,14 +28,24 @@ function getFilesRecursively(dir: string, baseDir: string = dir): any[] {
   return results;
 }
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser?.id) {
+      return NextResponse.json({
+        message: 'Not authenticated. Log in to deploy your site.',
+        url: '',
+      }, { status: 401 });
+    }
+
     const body = await request.json();
-    const teacherId = body?.teacherId ? parseInt(body.teacherId, 10) : undefined;
+    const teacherId = sessionUser.id;
     const siteName = body?.name || 'teacher';
 
-    const sessionUser = await getSessionUser();
-    const token = sessionUser?.vercel_token || process.env.VERCEL_TOKEN;
+    const token = sessionUser.vercel_token || process.env.VERCEL_TOKEN;
     if (!token) {
       return NextResponse.json({
         message: 'VERCEL_TOKEN not configured. Add it to .env.local',
@@ -42,18 +53,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const data = teacherId ? await getContent(teacherId) : await getContent();
+    const data = await getContent(sessionUser.id);
     if (!data || !data.hero?.initials) {
       return NextResponse.json({ message: 'No site data found' }, { status: 400 });
     }
 
-    const result = await runBuild(data, teacherId);
-    const distDir = teacherId
-      ? path.join(process.cwd(), 'public', '_site', String(teacherId))
-      : path.join(process.cwd(), 'public', '_site');
+    const result = await ensureSiteBuild(data, sessionUser.id, true);
+    const distDir = path.join(process.cwd(), 'public', '_site', String(sessionUser.id));
 
     const safeName = siteName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'teacher-portfolio';
-    const projName = teacherId ? `${safeName}-${teacherId}` : safeName;
+    const projName = `${safeName}-${sessionUser.id}`;
 
     const files = getFilesRecursively(distDir);
     for (const f of files) {
@@ -96,7 +105,8 @@ export async function POST(request: NextRequest) {
       message: `Vercel error: ${json.error?.message || JSON.stringify(json)}`,
     }, { status: 400 });
 
-  } catch (e: any) {
-    return NextResponse.json({ message: `Deployment failed: ${e.message}` }, { status: 500 });
+  } catch (e) {
+    console.error('Deploy error:', e);
+    return NextResponse.json({ message: 'Deployment failed. Check your Vercel token and try again.' }, { status: 500 });
   }
 }

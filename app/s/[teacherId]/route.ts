@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getContent, runBuild } from '@/lib/db';
+import { getContent } from '@/lib/db';
+import { ensureSiteBuild } from '@/lib/builder';
 import path from 'path';
 import fs from 'fs';
 
@@ -12,18 +13,19 @@ export async function GET(
 ) {
   try {
     const { teacherId: teacherIdStr } = await params;
-    const teacherId = parseInt(teacherIdStr, 10);
-    if (isNaN(teacherId)) {
+    if (!/^\d+$/.test(teacherIdStr)) {
       return new NextResponse('Invalid teacher ID', { status: 400 });
     }
+    const teacherId = parseInt(teacherIdStr, 10);
 
     const data = await getContent(teacherId);
     if (!data || !data.hero?.initials) {
       return new NextResponse('Site not found', { status: 404 });
     }
 
-    // Build and serve
-    const result = await runBuild(data, teacherId);
+    // Rebuilds are cached (30s TTL) and coalesced — visitors can never
+    // trigger a rebuild stampede.
+    await ensureSiteBuild(data, teacherId, false);
     const distDir = path.join(process.cwd(), 'public', '_site', String(teacherId));
     const indexPath = path.join(distDir, 'index.html');
     if (!fs.existsSync(indexPath)) {
@@ -39,7 +41,8 @@ export async function GET(
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
-  } catch (err: any) {
-    return new NextResponse(`Error: ${err.message}`, { status: 500 });
+  } catch (err) {
+    console.error('Site serve error:', err);
+    return new NextResponse('Internal server error', { status: 500 });
   }
 }

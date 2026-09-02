@@ -27,7 +27,18 @@ export async function GET(
 ) {
   try {
     const { teacherId, path: pathSegments } = await params;
-    const filePath = path.join(process.cwd(), 'public', '_site', teacherId, ...(pathSegments || []));
+    if (!/^\d+$/.test(teacherId)) {
+      return new NextResponse('Not found', { status: 404 });
+    }
+
+    const siteRoot = path.join(process.cwd(), 'public', '_site', teacherId);
+    const filePath = path.resolve(siteRoot, ...(pathSegments || []));
+
+    // Path-traversal guard: resolved path must stay inside the site root.
+    const rootWithSep = siteRoot.endsWith(path.sep) ? siteRoot : siteRoot + path.sep;
+    if (filePath !== siteRoot && !filePath.startsWith(rootWithSep)) {
+      return new NextResponse('Not found', { status: 404 });
+    }
 
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       return new NextResponse('Not found', { status: 404 });
@@ -40,6 +51,7 @@ export async function GET(
     return new NextResponse(content, {
       headers: {
         'Content-Type': contentType,
+        'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });

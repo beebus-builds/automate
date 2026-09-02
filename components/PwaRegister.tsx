@@ -12,6 +12,15 @@ export default function PwaRegister() {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
+      if (process.env.NODE_ENV !== 'production') {
+        // SW caching breaks dev HMR and can crash the page with stale chunks.
+        // Unregister any leftover registrations so dev is clean.
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+          .catch(() => {});
+        return;
+      }
       navigator.serviceWorker
         .register('/sw.js')
         .then(() => console.log('SW registered for offline support'))
