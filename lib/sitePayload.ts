@@ -95,6 +95,8 @@ export function teacherDataToContent(data: TeacherData) {
   const hasAch = !!safeAch;
   const hasContact = !!safeEmail || !!safePhone;
   const hasBio = !!safeBio;
+  // One-sentence enrich: if bio is a single short sentence, expand with subject context for richer about/SEO
+  const enrichedBio = hasBio && safeBio.length < 80 && !safeBio.includes('. ') ? `${safeBio.trim().replace(/\.$/, '')}. I teach ${safeSubject || 'students'} with a focus on curiosity, growth, and real-world learning.` : safeBio;
   return {
     theme: theme ? mapThemeToBuildData(theme) : { name: 'theme-theme-1' },
     style: {
@@ -123,7 +125,7 @@ export function teacherDataToContent(data: TeacherData) {
     site: { title: `${safeName.slice(0, 120) || 'Teacher'} — Teacher Portfolio` },
     seo: {
       metaTitle: `${safeName.slice(0, 80) || 'Teacher'} — Educator Portfolio`,
-      metaDesc: safeBio.slice(0, 160) || `Professional portfolio of ${safeName || 'Teacher'}, ${safeSubject || 'educator'} educator.`,
+      metaDesc: enrichedBio.slice(0, 160) || `Professional portfolio of ${safeName || 'Teacher'}, ${safeSubject || 'educator'} educator.`,
       ogImage: safePhoto,
       googleAnalytics: '',
     },
@@ -131,13 +133,13 @@ export function teacherDataToContent(data: TeacherData) {
       tagline: `${safeSubject ? String(safeSubject).slice(0, 80) : 'Educator'} Portfolio`,
       title: `Welcome to ${safeName.slice(0, 80) || 'My'}'s Classroom`,
       highlight: safeName.slice(0, 80),
-      description: safeBio.slice(0, 500) || 'Dedicated to inspiring students and fostering academic excellence.',
+      description: enrichedBio.slice(0, 500) || 'Dedicated to inspiring students and fostering academic excellence.',
       initials,
       heroImage: safePhoto,
       photo: safePhoto,
     },
     about: {
-      lead: safeBio.slice(0, 1000),
+      lead: enrichedBio.slice(0, 1000),
       paragraphs: [
         'I believe every student possesses unique talents waiting to be unlocked.',
         'My instructional approach centers on curiosity, critical thinking, and mutual respect.',
