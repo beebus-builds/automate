@@ -1,7 +1,7 @@
+'use client';
+
 import Link from 'next/link';
 import { Logo } from '@/components/Logo';
-
-export const dynamic = 'force-static';
 
 export default function OfflinePage() {
   return (
