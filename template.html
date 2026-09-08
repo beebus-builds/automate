@@ -9,6 +9,7 @@
   <meta property="og:description" content="{{SEO_DESC}}">
   <meta property="og:image" content="{{SEO_IMAGE}}">
   <meta name="theme-color" content="{{PRIMARY_COLOR}}">
+  <script>try{var s=localStorage.getItem('tf-theme');var m=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';var t=s||m;document.documentElement.setAttribute('data-theme',t);document.documentElement.style.colorScheme=t}catch(e){}</script>
   {{GA_SCRIPT}}
   {{CUSTOM_HEAD}}
   <link rel="stylesheet" href="css/style.css">
@@ -29,6 +30,7 @@
           {{NAV_HTML}}
         </ul>
       </nav>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle light and dark mode" title="Toggle theme">🌙</button>
       <button class="navbar__hamburger" id="hamburger" aria-label="Toggle menu">
         <span></span><span></span><span></span>
       </button>

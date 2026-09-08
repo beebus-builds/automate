@@ -91,6 +91,48 @@ export default function StudioPage() {
   const [copiedTick, setCopiedTick] = useState(0);
   const [auditOpen, setAuditOpen] = useState(false);
 
+  // ── Builder → Chat sync: broadcast TeacherData to Build page (BroadcastChannel + localStorage fallback) ──
+  const studioSyncRef = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    try {
+      studioSyncRef.current = new BroadcastChannel('tf-studio-sync');
+      // Also listen for Build → Studio updates so chat changes flow back
+      studioSyncRef.current.onmessage = (e: any) => {
+        if (e.data?.type === 'chat-update' && e.data?.data) {
+          const incoming = e.data.data as TeacherData;
+          setData(prev => ({ ...prev, ...incoming, customSections: incoming.customSections ?? (prev as any).customSections, layoutSections: (incoming as any).layoutSections ?? (prev as any).layoutSections, theme: (incoming as any).theme ?? (prev as any).theme, style: (incoming as any).style ?? (prev as any).style, photo: (incoming as any).photo ?? (prev as any).photo, gallery: (incoming as any).gallery ?? (prev as any).gallery }));
+        }
+      };
+    } catch {}
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === 'tf-chat-sync' && ev.newValue) {
+        try {
+          const parsed = JSON.parse(ev.newValue);
+          if (parsed?.data) {
+            const incoming = parsed.data as TeacherData;
+            setData(prev => ({ ...prev, ...incoming, customSections: incoming.customSections ?? (prev as any).customSections, layoutSections: (incoming as any).layoutSections ?? (prev as any).layoutSections, theme: (incoming as any).theme ?? (prev as any).theme, style: (incoming as any).style ?? (prev as any).style, photo: (incoming as any).photo ?? (prev as any).photo, gallery: (incoming as any).gallery ?? (prev as any).gallery }));
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => { try { studioSyncRef.current?.close(); } catch {}; window.removeEventListener('storage', onStorage); };
+  }, []);
+
+  const notifyStudioUpdate = (next: TeacherData) => {
+    try {
+      studioSyncRef.current?.postMessage({ type: 'studio-update', data: next, ts: Date.now() });
+      localStorage.setItem('tf-studio-sync', JSON.stringify({ ts: Date.now(), data: next }));
+    } catch {}
+  };
+
+  // Debounced broadcast so Build preview follows Studio live (without spamming)
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => notifyStudioUpdate(data), 600);
+    return () => clearTimeout(t);
+  }, [data, loaded]);
+
   useEffect(() => {
     fetch('/api/auth')
       .then(r => r.json())
@@ -634,14 +676,19 @@ export default function StudioPage() {
   const save = async () => {
     setSaveState('saving');
     try {
+      // Also push a studio log into chat so Build page's history shows the Studio edit
+      const summary = `Studio saved — ${theme.name} • ${customs.length} sections • ${new Date().toLocaleTimeString()}`;
+      const nextMsgs = [...chatMessages, { role: 'bot', text: summary, _studioSync: true, ts: Date.now() }];
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: chatMessages, step: 'done', data, memory: chatMemory }),
+        body: JSON.stringify({ messages: nextMsgs, step: 'done', data, memory: chatMemory }),
       });
       if (!res.ok) throw new Error();
+      setChatMessages(nextMsgs);
       setSaveState('saved');
       setDirty(false);
+      notifyStudioUpdate(data);
     } catch {
       setSaveState('error');
     }
@@ -656,9 +703,15 @@ export default function StudioPage() {
       if (!put.ok) throw new Error('save failed');
       const build = await fetch('/api/build', { method: 'POST' });
       if (!build.ok) throw new Error('build failed');
+      // Also sync chat so Build's chat sees the publish
+      const pubMsg = { role: 'bot', text: ` Studio published — live at /s/${user?.id || ''} ✨`, _studioSync: true, ts: Date.now() };
+      const nextMsgs = [...chatMessages, pubMsg];
+      await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: nextMsgs, step: 'done', data, memory: chatMemory }) }).catch(() => {});
+      setChatMessages(nextMsgs);
       setPublishState('done');
       setPublishMsg('Published! Your live site + preview are updated.');
       setDirty(false);
+      notifyStudioUpdate(data);
     } catch {
       setPublishState('error');
       setPublishMsg('Publish failed — try again.');

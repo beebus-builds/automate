@@ -163,6 +163,44 @@ export default function BuildPage() {
       .catch(() => setAuthChecked(true));
   }, []);
 
+  // ── Chat ↔ Studio sync: studio edits appear live in chat preview ──
+  const chatSyncRef = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    try {
+      chatSyncRef.current = new BroadcastChannel('tf-studio-sync');
+      chatSyncRef.current.onmessage = (e: any) => {
+        if (e.data?.type === 'studio-update' && e.data?.data) {
+          const incoming = e.data.data as TeacherData;
+          setData(prev => ({ ...prev, ...incoming, customSections: (incoming as any).customSections ?? (prev as any).customSections, layoutSections: (incoming as any).layoutSections ?? (prev as any).layoutSections, theme: (incoming as any).theme ?? (prev as any).theme, style: (incoming as any).style ?? (prev as any).style, photo: (incoming as any).photo ?? (prev as any).photo, gallery: (incoming as any).gallery ?? (prev as any).gallery }));
+        }
+      };
+    } catch {}
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === 'tf-studio-sync' && ev.newValue) {
+        try {
+          const parsed = JSON.parse(ev.newValue);
+          if (parsed?.data) {
+            const incoming = parsed.data as TeacherData;
+            setData(prev => ({ ...prev, ...incoming, customSections: (incoming as any).customSections ?? (prev as any).customSections, layoutSections: (incoming as any).layoutSections ?? (prev as any).layoutSections, theme: (incoming as any).theme ?? (prev as any).theme, style: (incoming as any).style ?? (prev as any).style, photo: (incoming as any).photo ?? (prev as any).photo, gallery: (incoming as any).gallery ?? (prev as any).gallery }));
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => { try { chatSyncRef.current?.close(); } catch {}; window.removeEventListener('storage', onStorage); };
+  }, []);
+  // Broadcast chat changes to Studio (so Studio sees chat-added photos/theme)
+  useEffect(() => {
+    if (!user) return;
+    const t = setTimeout(() => {
+      try {
+        chatSyncRef.current?.postMessage({ type: 'chat-update', data, ts: Date.now() });
+        localStorage.setItem('tf-chat-sync', JSON.stringify({ ts: Date.now(), data }));
+      } catch {}
+    }, 600);
+    return () => clearTimeout(t);
+  }, [data, user]);
+
   useEffect(() => {
     if (user && msgs.length > 1) {
       fetch('/api/chat', {

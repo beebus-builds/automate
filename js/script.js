@@ -49,6 +49,29 @@
     }
   });
 
+  /* ---- Theme toggle (light/dark) ---- */
+  (function initThemeToggle() {
+    var btn = document.getElementById('themeToggle');
+    if (!btn) return;
+    function apply(theme) {
+      try {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+        localStorage.setItem('tf-theme', theme);
+        btn.textContent = theme === 'light' ? '🌙' : '☀️';
+        btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode');
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', theme === 'light' ? '#ffffff' : '#0b0f1a');
+      } catch {}
+    }
+    var cur = document.documentElement.getAttribute('data-theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    apply(cur);
+    btn.addEventListener('click', function () {
+      var cur2 = document.documentElement.getAttribute('data-theme');
+      apply(cur2 === 'dark' ? 'light' : 'dark');
+    });
+  })();
+
   /* ---- Navigation ---- */
   if (hamburger && nav) {
     hamburger.addEventListener('click', function () {
