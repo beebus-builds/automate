@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getContent } from '@/lib/db';
+import { getContent, saveContent } from '@/lib/db';
 import { ensureSiteBuild } from '@/lib/builder';
 import { getSessionUser } from '@/lib/auth';
+import { clientIp, rateLimit } from '@/lib/rate-limit';
+import { deployBodySchema } from '@/lib/validation';
+import { slugifyTeacherName, teacherDisplayName } from '@/lib/slug';
 import path from 'path';
 import fs from 'fs';
 
@@ -31,6 +34,22 @@ function getFilesRecursively(dir: string, baseDir: string = dir): any[] {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** true when a Vercel project with this name already exists on the token's account. */
+async function projectTaken(name: string, token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.vercel.com/v9/projects/${encodeURIComponent(name)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 404) return false;
+    if (res.ok) return true;
+    // On unexpected responses fail safe: assume taken so we use the
+    // suffixed name and never overwrite another teacher's project.
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const sessionUser = await getSessionUser();
@@ -40,17 +59,24 @@ export async function POST(request: NextRequest) {
         url: '',
       }, { status: 401 });
     }
+    // Deploys fan out to Vercel + rebuild the static bundle — strict limit.
+    const rl = await rateLimit(`deploy:${sessionUser.id}`, 5, 10 * 60_000);
+    if (!rl.allowed) {
+      return NextResponse.json({ message: 'Too many deployments. Try again in a few minutes.', url: '' }, { status: 429 });
+    }
 
-    const body = await request.json();
+    const rawBody = await request.json().catch(() => null);
+    const parsed = deployBodySchema.safeParse(rawBody ?? {});
+    const body = parsed.success ? parsed.data : {};
+
     const teacherId = sessionUser.id;
-    const siteName = body?.name || 'teacher';
 
     const token = sessionUser.vercel_token || process.env.VERCEL_TOKEN;
     if (!token) {
       return NextResponse.json({
         message: 'VERCEL_TOKEN not configured. Add it to .env.local',
         url: '',
-      });
+      }, { status: 400 });
     }
 
     const data = await getContent(sessionUser.id);
@@ -61,9 +87,19 @@ export async function POST(request: NextRequest) {
     const result = await ensureSiteBuild(data, sessionUser.id, true);
     const distDir = path.join(process.cwd(), 'public', '_site', String(sessionUser.id));
 
-    const safeName = siteName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'teacher-portfolio';
-    const projName = `${safeName}-${sessionUser.id}`;
-
+    // ── Automatic domain: teacher's name, reused on every redeploy ──
+    // The chosen project name is stored on the teacher's own content doc,
+    // so redeploys update the same URL and never orphan projects.
+    let projectName: string | undefined = data?.deployment?.projectName;
+    if (!projectName) {
+      const base = slugifyTeacherName(body?.name || teacherDisplayName(data));
+      projectName = base;
+      if (await projectTaken(base, token)) {
+        // Another project already owns this slug (e.g. same-name teacher):
+        // suffix with the teacher id — still carries their name.
+        projectName = `${base}-${teacherId}`.slice(0, 100);
+      }
+    }
     const files = getFilesRecursively(distDir);
     for (const f of files) {
       if (f.data === undefined) {
@@ -74,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     const payload: any = {
-      name: projName,
+      name: projectName,
       files,
       target: 'production',
       projectSettings: {
@@ -95,8 +131,17 @@ export async function POST(request: NextRequest) {
 
     const json = await res.json();
     if (json.url) {
+      const url = `https://${json.url}`;
+      // Remember the project so redeploys reuse the same domain.
+      try {
+        data.deployment = { projectName, url, at: Date.now() };
+        await saveContent(data, sessionUser.id);
+      } catch {
+        // Deploy succeeded; persisting the pointer must not fail the request.
+      }
       return NextResponse.json({
-        url: `https://${json.url}`,
+        url,
+        projectName,
         message: 'Site is live! Anyone can access it at this URL.',
       });
     }

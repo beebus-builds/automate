@@ -59,9 +59,12 @@ describe('validateUpload', () => {
 });
 
 describe('sanitizeText', () => {
-  it('strips HTML-dangerous characters', () => {
+  it('strips angle brackets but preserves quotes/apostrophes', () => {
     expect(sanitizeText('<script>alert(1)</script>', 500)).not.toContain('<');
-    expect(sanitizeText('a"b\'c', 500)).toBe('abc');
+    expect(sanitizeText('<script>alert(1)</script>', 500)).not.toContain('>');
+    // O'Brien-style names and quoted text must survive; escaping happens on render.
+    expect(sanitizeText('a"b\'c', 500)).toBe('a"b\'c');
+    expect(sanitizeText("O'Brien “hello”", 500)).toBe("O'Brien “hello”");
   });
 
   it('truncates to max length', () => {

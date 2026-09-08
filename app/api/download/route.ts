@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const data = await getContent();
-    await ensureSiteBuild(data, undefined, false);
+    const data = await getContent(user.id);
+    await ensureSiteBuild(data, user.id, false);
 
-    const siteDirFor = require('path').join(process.cwd(), 'public', '_site');
+    const siteDirFor = require('path').join(process.cwd(), 'public', '_site', String(user.id));
     const fs = require('fs');
     if (!fs.existsSync(require('path').join(siteDirFor, 'index.html'))) {
       return NextResponse.json({ error: 'No built site found. Generate your site first.' }, { status: 400 });

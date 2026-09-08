@@ -43,17 +43,20 @@ export function contrastText(hex: string): '#000000' | '#ffffff' {
   return colorLuminance(hex) > 128 ? '#000000' : '#ffffff';
 }
 
-/** Deep merge two objects */
-export function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+type DeepPartial<T> = T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T;
+
+/** Deep merge two objects — source may be a deep partial */
+export function deepMerge<T extends Record<string, any>>(target: T, source: DeepPartial<T>): T {
   const result = { ...target };
-  for (const key of Object.keys(source) as (keyof T)[]) {
-    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+  for (const key of Object.keys(source as object) as (keyof T)[]) {
+    const srcVal = (source as Record<string, any>)[key as string];
+    if (srcVal && typeof srcVal === 'object' && !Array.isArray(srcVal)) {
       result[key] = deepMerge(
         (result[key] as Record<string, any>) || {},
-        source[key] as Record<string, any>,
+        srcVal as Record<string, any>,
       ) as T[keyof T];
-    } else if (source[key] !== undefined) {
-      result[key] = source[key] as T[keyof T];
+    } else if (srcVal !== undefined) {
+      result[key] = srcVal as T[keyof T];
     }
   }
   return result;

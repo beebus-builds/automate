@@ -11,7 +11,6 @@ export default defineConfig([
     "next-env.d.ts",
     "public/**",
     "data/**",
-    "python-server/**",
     "tsconfig.tsbuildinfo",
   ]),
 ]);

@@ -44,7 +44,7 @@ export function BuildSuccess({ name, downloadUrl, deployUrl, publicUrl, deploySt
       </div>
 
       <div className="mt-6 pt-5 border-t border-white/[0.06] flex gap-6 justify-center text-xs">
-        <Link href="/cms" className="text-brand-400 no-underline hover:underline">Open in CMS →</Link>
+        <Link href="/studio" className="text-brand-400 no-underline hover:underline">🎨 Fine-tune in Visual Studio →</Link>
         <span className="text-slate-700">|</span>
         <Link href="/" className="text-slate-500 no-underline hover:text-slate-300 transition-colors">Return Home</Link>
       </div>

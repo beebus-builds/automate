@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { pool } from './db';
+import { encryptSecret, decryptSecret } from './crypto';
+import { csrfCookieValue } from './csrf';
 
 const PBKDF2_ITERATIONS = 210000;
 
@@ -27,8 +29,21 @@ export function verifyPassword(password: string, storedHash: string): boolean {
   }
 
   if (!salt || !originalHash || isNaN(iterations)) return false;
-  const hash = crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
-  return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(originalHash, 'hex'));
+  let expected: Buffer;
+  let actual: Buffer;
+  try {
+    expected = Buffer.from(originalHash, 'hex');
+    actual = Buffer.from(crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex'), 'hex');
+  } catch {
+    return false;
+  }
+  // timingSafeEqual throws on length mismatch — treat as non-match, not 500.
+  if (expected.length !== actual.length) return false;
+  try {
+    return crypto.timingSafeEqual(actual, expected);
+  } catch {
+    return false;
+  }
 }
 
 export function generateSessionToken(): string {
@@ -52,6 +67,14 @@ export async function createSession(userId: number): Promise<string> {
     expires: expiresAt,
     path: '/',
   });
+  // CSRF double-submit cookie (readable by JS for header)
+  cookieStore.set('tf_csrf', csrfCookieValue(token), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    expires: expiresAt,
+    path: '/',
+  });
 
   return token;
 }
@@ -69,11 +92,25 @@ export async function getSessionUser(): Promise<any | null> {
        WHERE s.token = $1 AND s.expires_at > NOW()`,
       [token]
     );
-
-    return rows.length > 0 ? rows[0] : null;
+    if (rows.length === 0) return null;
+    const user = rows[0];
+    // Decrypt vercel_token at rest (back-compat with plaintext rows)
+    if (user.vercel_token) {
+      try { user.vercel_token = decryptSecret(user.vercel_token) || ''; } catch { user.vercel_token = ''; }
+    }
+    // Include raw token for CSRF helper (not exposed to client)
+    user._sessionToken = token;
+    return user;
   } catch (err) {
     return null;
   }
+}
+
+export async function getSessionToken(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies();
+    return cookieStore.get('tf_session')?.value || null;
+  } catch { return null; }
 }
 
 export async function clearSession(): Promise<void> {
@@ -84,8 +121,18 @@ export async function clearSession(): Promise<void> {
       await pool.query('DELETE FROM sessions WHERE token = $1', [token]);
     }
     cookieStore.delete('tf_session');
+    cookieStore.delete('tf_csrf');
   } catch (err) {
   }
+}
+
+export async function clearAllSessions(userId: number): Promise<void> {
+  await pool.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete('tf_session');
+    cookieStore.delete('tf_csrf');
+  } catch {}
 }
 
 export async function rotateSession(userId: number): Promise<string> {

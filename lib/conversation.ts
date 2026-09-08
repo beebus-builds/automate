@@ -9,14 +9,25 @@ export interface TeacherData {
   email: string;
   phone: string;
   theme: string;
+  /** Profile photo URL (uploaded via /api/media or pasted link). */
+  photo: string;
+  /** Extra classroom/life photos used for the gallery section. */
+  gallery: string[];
   style?: Record<string, any>;
   customSections?: any[];
+  /** Elementor-style section order/variants, edited in Studio. */
+  layoutSections?: { type: string; id?: string; variant?: string; bgColor?: string; bgPattern?: string; padding?: string }[];
+  /** Per-section visibility flags, edited in Studio. */
+  visibility?: Record<string, boolean>;
+  /** Site meta flags (directory listing, AI replies, …). */
+  meta?: { directoryListed?: boolean; aiReplies?: boolean };
 }
 
 export const emptyData: TeacherData = {
   name: '', subject: '', years: '', bio: '',
   courses: [], quote: '', achievements: '',
   email: '', phone: '', theme: 'modern',
+  photo: '', gallery: [],
 };
 
 const namePatterns = [
@@ -36,6 +47,9 @@ const yearsPatterns = [
 ];
 
 const emailPattern = /([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/;
+
+// Direct image links (uploaded files, Unsplash, etc.)
+const imageUrlPattern = /(https?:\/\/[^\s"'<>()]+\.(?:png|jpe?g|gif|webp)(?:\?[^\s"'<>()]*)?|https?:\/\/(?:images\.unsplash\.com|unsplash\.com)[^\s"'<>()]*)/i;
 
 const phonePattern = /(\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/;
 
@@ -92,6 +106,11 @@ function extractPhone(input: string): string | null {
   return m ? m[0].trim() : null;
 }
 
+function extractImageUrl(input: string): string | null {
+  const m = input.match(imageUrlPattern);
+  return m ? m[1] : null;
+}
+
 function extractQuote(input: string): string | null {
   // Check if there's a quoted sentence + attribution
   const quoteMatch = input.match(/["""](.+?)["""]/);
@@ -115,6 +134,20 @@ function extractAchievements(input: string): string | null {
     return input.trim();
   }
   return null;
+}
+
+/**
+ * Pull an image link out of a message: the first one becomes the profile
+ * photo, later ones accumulate into the gallery.
+ */
+export function extractImages(input: string, current: TeacherData): Partial<TeacherData> {
+  const img = extractImageUrl(input);
+  if (!img) return {};
+  if (!current.photo) return { photo: img };
+  if (current.photo !== img && !(current.gallery || []).includes(img)) {
+    return { gallery: [...(current.gallery || []), img] };
+  }
+  return {};
 }
 
 interface ParseResult {
@@ -199,6 +232,14 @@ export function parseMessage(input: string, current: TeacherData): ParseResult {
       extracted.phone = phone;
       unmatched = unmatched.replace(phone, '').trim();
     }
+  }
+
+  // Photo / gallery — a pasted image link becomes the profile photo,
+  // further links accumulate into the gallery.
+  const img = extractImageUrl(input);
+  if (img) {
+    Object.assign(extracted, extractImages(input, current));
+    unmatched = unmatched.split(img).join('').trim();
   }
 
   // Quote / philosophy
@@ -286,6 +327,14 @@ export function generateResponse(collected: TeacherData, justExtracted: Partial<
     parts.push(`Those are some solid accomplishments!`);
   }
 
+  if (justExtracted.photo) {
+    parts.push(`Profile photo saved — looking sharp! 📸`);
+  }
+
+  if (justExtracted.gallery && justExtracted.gallery.length > 0) {
+    parts.push(`Added ${justExtracted.gallery.length} photo${justExtracted.gallery.length > 1 ? 's' : ''} to your gallery.`);
+  }
+
   // Check current state and ask for next missing thing
   if (missing.length === 0) {
     return parts.join(' ') + ` All set${hasName ? ', ' + nameDisplay : ''}! Ready to pick a theme and build your site.`;
@@ -331,6 +380,9 @@ function askFor(field: string, name: string): string {
 }
 
 export function getSummary(data: TeacherData, themes: { id: string; label: string }[]): [string, string][] {
+  const photos: string[] = [];
+  if (data.photo) photos.push('Profile ✓');
+  if (data.gallery?.length) photos.push(`${data.gallery.length} gallery`);
   return [
     ['Name', data.name || '—'],
     ['Subject', data.subject || '—'],
@@ -340,6 +392,7 @@ export function getSummary(data: TeacherData, themes: { id: string; label: strin
     ['Quote', data.quote || '—'],
     ['Achievements', data.achievements || '—'],
     ['Contact', [data.email, data.phone].filter(Boolean).join(' · ') || '—'],
+    ['Photos', photos.length ? photos.join(' · ') : '—'],
     ['Theme', themes.find(t => t.id === data.theme)?.label || 'Modern'],
   ];
 }

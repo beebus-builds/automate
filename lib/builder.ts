@@ -5,11 +5,11 @@ import { runBuild } from './db';
 const inFlight = new Map<string, Promise<string>>();
 const REBUILD_TTL_MS = 30_000;
 
-function siteDir(teacherId: number): string {
+function siteDir(teacherId: number | string): string {
   return path.join(process.cwd(), 'public', '_site', String(teacherId));
 }
 
-function markerFile(teacherId: number): string {
+function markerFile(teacherId: number | string): string {
   return path.join(siteDir(teacherId), '.built');
 }
 
@@ -39,8 +39,11 @@ export async function ensureSiteBuild(
   teacherId?: number,
   force = false
 ): Promise<BuildResult> {
-  const key = teacherId ? `site-${teacherId}` : 'site-global';
-  const dist = siteDir(teacherId);
+  // Fall back to a shared preview dir when no owner id is given so we
+  // never write to a literal "_site/undefined" folder.
+  const id: number | string = teacherId ?? 'preview';
+  const key = `site-${id}`;
+  const dist = siteDir(id);
 
   if (!force && isFresh(dist) && !inFlight.has(key)) {
     return { message: 'Site is up to date', cached: true };
@@ -53,7 +56,7 @@ export async function ensureSiteBuild(
 
   const job = (async () => {
     try {
-      return await runBuild(data, teacherId);
+      return await runBuild(data, id);
     } finally {
       inFlight.delete(key);
     }

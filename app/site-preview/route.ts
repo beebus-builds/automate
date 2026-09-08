@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent } from '@/lib/db';
 import { ensureSiteBuild } from '@/lib/builder';
+import { getSessionUser } from '@/lib/auth';
 import fs from 'fs';
 import path from 'path';
 
 export async function GET(request: NextRequest) {
   try {
-    const data = await getContent();
-    await ensureSiteBuild(data, undefined, false);
+    const user = await getSessionUser();
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const data = await getContent(user.id);
+    await ensureSiteBuild(data, user.id, false);
 
-    const siteDir = path.join(process.cwd(), 'public', '_site');
+    const siteDir = path.join(process.cwd(), 'public', '_site', String(user.id));
     const indexPath = path.join(siteDir, 'index.html');
 
     if (fs.existsSync(indexPath)) {

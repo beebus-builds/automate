@@ -9,7 +9,11 @@ const USE_PG = process.env.USE_POSTGRES === 'true' && !!process.env.DATABASE_URL
 function c(sql: string): string {
   return sql
     .replace(/\$(\d+)/g, '?')
-    .replace(/\bNOW\(\)/g, "datetime('now')")
+    // Store/compare timestamps as ISO-8601 UTC (e.g. 2026-09-03T12:00:00.000Z)
+    // so JS `Date.toISOString()` values compare correctly with SQL NOW().
+    // `datetime('now')` returns 'YYYY-MM-DD HH:MM:SS' which does NOT sort
+    // correctly against ISO strings containing 'T'.
+    .replace(/\bNOW\(\)/g, "strftime('%Y-%m-%dT%H:%M:%fZ','now')")
     .replace(/\bJSONB\b/g, 'TEXT')
     .replace(/\bTIMESTAMPTZ\b/g, 'TEXT')
     .replace(/\bSERIAL\b/g, 'INTEGER');
@@ -32,7 +36,16 @@ if (USE_PG) {
   backend = 'pg';
   const { Pool: PgPool } = require('pg') as { Pool: new (config: any) => { query: (sql: string, params?: any[]) => Promise<{ rows: any[] }> } };
   const pgPool = new PgPool({ connectionString: process.env.DATABASE_URL });
-  pool = { query: (sql, params) => pgPool.query(sql, params).then(r => ({ rows: r.rows })) };
+  // Gate every query on init so the first request never races table creation.
+  let _resolvePgReady!: () => void;
+  const pgReady: Promise<void> = new Promise((res) => { _resolvePgReady = () => res(); });
+  pool = {
+    query: async (sql, params) => {
+      await pgReady;
+      const r = await pgPool.query(sql, params);
+      return { rows: r.rows };
+    },
+  };
 
   async function initPgTables() {
     const tables = [
@@ -41,10 +54,18 @@ if (USE_PG) {
       `CREATE TABLE IF NOT EXISTS content (id INTEGER PRIMARY KEY CHECK (id = 1), data JSONB NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS user_content (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, data JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS chat_state (user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, messages JSONB NOT NULL DEFAULT '[]', step TEXT NOT NULL DEFAULT 'name', data JSONB NOT NULL DEFAULT '{}', updated_at TIMESTAMPTZ DEFAULT NOW())`,
-      `CREATE TABLE IF NOT EXISTS pending_calls (id SERIAL PRIMARY KEY, teacher_name TEXT NOT NULL DEFAULT 'Teacher', room_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'ringing', answered_by INTEGER REFERENCES users(id) ON DELETE SET NULL, answered_at TIMESTAMPTZ, created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS media (id SERIAL PRIMARY KEY, filename TEXT NOT NULL, original_name TEXT NOT NULL, size INTEGER NOT NULL, user_id INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS history (id SERIAL PRIMARY KEY, data JSONB NOT NULL, user_id INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS visitor_messages (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, text TEXT NOT NULL, sender TEXT DEFAULT 'visitor', created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS site_views (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, path TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS booking_slots (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, weekday INTEGER NOT NULL, "start" TEXT NOT NULL, "end" TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS bookings (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, name TEXT NOT NULL DEFAULT '', email TEXT NOT NULL DEFAULT '', "date" TEXT NOT NULL DEFAULT '', "time" TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS posts (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, slug TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', cover TEXT NOT NULL DEFAULT '', published INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS site_domains (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, domain TEXT NOT NULL, verified INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS teacher_settings (teacher_id INTEGER PRIMARY KEY, notify_email TEXT NOT NULL DEFAULT '', notify_on_message INTEGER NOT NULL DEFAULT 1, notify_on_booking INTEGER NOT NULL DEFAULT 1, mail_provider TEXT NOT NULL DEFAULT '', mail_from TEXT NOT NULL DEFAULT '', resend_key TEXT NOT NULL DEFAULT '', smtp_host TEXT NOT NULL DEFAULT '', smtp_port INTEGER NOT NULL DEFAULT 587, smtp_user TEXT NOT NULL DEFAULT '', smtp_pass TEXT NOT NULL DEFAULT '')`,
+      `CREATE TABLE IF NOT EXISTS post_comments (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, post_slug TEXT NOT NULL DEFAULT '', name TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS subscribers (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, email TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS testimonial_submissions (id SERIAL PRIMARY KEY, teacher_id INTEGER NOT NULL, name TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '', context TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS rate_limits (rl_key TEXT PRIMARY KEY, hits INTEGER NOT NULL DEFAULT 0, window_start TIMESTAMPTZ NOT NULL)`,
     ];
     for (const sql of tables) {
@@ -52,10 +73,13 @@ if (USE_PG) {
     }
     await pgPool.query('ALTER TABLE media ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0');
     await pgPool.query('ALTER TABLE history ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0');
+    await pgPool.query('ALTER TABLE visitor_messages ADD COLUMN IF NOT EXISTS read INTEGER NOT NULL DEFAULT 0');
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    // Opportunistically purge expired sessions (best-effort).
+    try { await pgPool.query("DELETE FROM sessions WHERE expires_at < NOW()"); } catch {}
   }
-  initPgTables().catch((err: any) => console.error('PG init error:', err.message));
+  initPgTables().then(() => _resolvePgReady()).catch((err: any) => { console.error('PG init error:', err.message); _resolvePgReady(); });
 } else {
   backend = 'sqlite';
   const Database: new (path: string, options?: any) => any = require('better-sqlite3');
@@ -87,7 +111,7 @@ if (USE_PG) {
       password_hash TEXT NOT NULL,
       name TEXT NOT NULL,
       vercel_token TEXT DEFAULT '',
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `));
   db.exec(c(`
@@ -107,7 +131,7 @@ if (USE_PG) {
     CREATE TABLE IF NOT EXISTS user_content (
       user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       data TEXT NOT NULL,
-      updated_at TEXT DEFAULT (datetime('now'))
+      updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `));
   db.exec(c(`
@@ -116,18 +140,7 @@ if (USE_PG) {
       messages TEXT NOT NULL DEFAULT '[]',
       step TEXT NOT NULL DEFAULT 'name',
       data TEXT NOT NULL DEFAULT '{}',
-      updated_at TEXT DEFAULT (datetime('now'))
-    );
-  `));
-  db.exec(c(`
-    CREATE TABLE IF NOT EXISTS pending_calls (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      teacher_name TEXT NOT NULL DEFAULT 'Teacher',
-      room_id TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'ringing',
-      answered_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      answered_at TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
+      updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `));
   db.exec(c(`
@@ -137,7 +150,7 @@ if (USE_PG) {
       original_name TEXT NOT NULL,
       size INTEGER NOT NULL,
       user_id INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `));
   try {
@@ -150,7 +163,7 @@ if (USE_PG) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       data TEXT NOT NULL,
       user_id INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `));
   try {
@@ -164,7 +177,109 @@ if (USE_PG) {
       teacher_id INTEGER NOT NULL,
       text TEXT NOT NULL,
       sender TEXT DEFAULT 'visitor',
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+  `));
+  try {
+    db.exec(c('ALTER TABLE visitor_messages ADD COLUMN read INTEGER NOT NULL DEFAULT 0'));
+  } catch {
+    // column already exists on migrated dbs
+  }
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS site_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      path TEXT NOT NULL DEFAULT '',
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS booking_slots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      weekday INTEGER NOT NULL,
+      start TEXT NOT NULL,
+      end TEXT NOT NULL
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS bookings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      date TEXT NOT NULL DEFAULT '',
+      time TEXT NOT NULL DEFAULT '',
+      note TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS posts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      slug TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      cover TEXT NOT NULL DEFAULT '',
+      published INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS site_domains (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      domain TEXT NOT NULL,
+      verified INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS teacher_settings (
+      teacher_id INTEGER PRIMARY KEY,
+      notify_email TEXT NOT NULL DEFAULT '',
+      notify_on_message INTEGER NOT NULL DEFAULT 1,
+      notify_on_booking INTEGER NOT NULL DEFAULT 1,
+      mail_provider TEXT NOT NULL DEFAULT '',
+      mail_from TEXT NOT NULL DEFAULT '',
+      resend_key TEXT NOT NULL DEFAULT '',
+      smtp_host TEXT NOT NULL DEFAULT '',
+      smtp_port INTEGER NOT NULL DEFAULT 587,
+      smtp_user TEXT NOT NULL DEFAULT '',
+      smtp_pass TEXT NOT NULL DEFAULT ''
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS post_comments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      post_slug TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL DEFAULT '',
+      text TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS subscribers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      email TEXT NOT NULL DEFAULT '',
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+    );
+  `));
+  db.exec(c(`
+    CREATE TABLE IF NOT EXISTS testimonial_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      teacher_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      text TEXT NOT NULL DEFAULT '',
+      context TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     );
   `));
   db.exec(c(`
@@ -242,15 +357,17 @@ export async function saveChatState(userId: number, messages: any, step: string,
   }
 }
 
-export async function getMediaList(userId?: number): Promise<any[]> {
+export async function getMediaList(userId?: number, limit = 100, offset = 0): Promise<any[]> {
+  const safeLimit = Math.min(Math.max(Math.floor(limit) || 100, 1), 200);
+  const safeOffset = Math.max(Math.floor(offset) || 0, 0);
   if (userId) {
     const { rows } = await pool.query(
-      'SELECT * FROM media WHERE user_id = $1 ORDER BY created_at DESC',
-      [userId]
+      'SELECT * FROM media WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+      [userId, safeLimit, safeOffset]
     );
     return rows;
   }
-  const { rows } = await pool.query('SELECT * FROM media ORDER BY created_at DESC');
+  const { rows } = await pool.query('SELECT * FROM media ORDER BY created_at DESC LIMIT $1 OFFSET $2', [safeLimit, safeOffset]);
   return rows;
 }
 
@@ -282,8 +399,9 @@ export async function pushHistory(data: any, userId: number): Promise<void> {
   await pool.query('INSERT INTO history (data, user_id) VALUES ($1, $2)', [JSON.stringify(data), userId]);
 }
 
-export async function getHistory(userId: number): Promise<string[]> {
-  const { rows } = await pool.query('SELECT data FROM history WHERE user_id = $1 ORDER BY id ASC', [userId]);
+export async function getHistory(userId: number, limit = 20): Promise<string[]> {
+  const safeLimit = Math.min(Math.max(Math.floor(limit) || 20, 1), 50);
+  const { rows } = await pool.query('SELECT data FROM history WHERE user_id = $1 ORDER BY id ASC LIMIT $2', [userId, safeLimit]);
   return rows.map((r: any) => r.data);
 }
 
@@ -297,6 +415,545 @@ export async function popHistory(userId: number): Promise<any | null> {
   return JSON.parse(recent[1].data);
 }
 
+export interface HistorySummary {
+  siteTitle: string;
+  heroTitle: string;
+  courses: number;
+  achievements: number;
+  sizeBytes: number;
+}
+
+export interface HistoryEntry {
+  id: number;
+  created_at: string;
+  summary: HistorySummary;
+}
+
+/** Lightweight human-readable summary so the list endpoint never ships full snapshots. */
+export function summarizeHistoryData(data: any): HistorySummary {
+  const d = data && typeof data === 'object' ? data : {};
+  let sizeBytes = 0;
+  try { sizeBytes = Buffer.byteLength(JSON.stringify(d), 'utf8'); } catch { sizeBytes = 0; }
+  return {
+    siteTitle: String(d?.site?.title ?? d?.seo?.metaTitle ?? '').slice(0, 120),
+    heroTitle: String(d?.hero?.title ?? '').slice(0, 120),
+    courses: Array.isArray(d?.courses) ? d.courses.length : 0,
+    achievements: Array.isArray(d?.achievements) ? d.achievements.length : 0,
+    sizeBytes,
+  };
+}
+
+function parseHistoryData(raw: unknown): any | null {
+  try {
+    const v = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Newest-first version list with summaries (no full snapshot payloads). */
+export async function getHistoryEntries(userId: number, limit = 20): Promise<HistoryEntry[]> {
+  const safeLimit = Math.min(Math.max(Math.floor(limit) || 20, 1), 50);
+  const { rows } = await pool.query(
+    'SELECT id, data, created_at FROM history WHERE user_id = $1 ORDER BY id DESC LIMIT $2',
+    [userId, safeLimit]
+  );
+  return rows.map((r: any) => ({
+    id: Number(r.id),
+    created_at: String(r.created_at ?? ''),
+    summary: summarizeHistoryData(parseHistoryData(r.data) ?? {}),
+  }));
+}
+
+/** Mark visitor messages read/unread (best-effort on legacy DBs). */
+export async function setMessagesRead(ids: number[], teacherId: number, read: boolean): Promise<void> {
+  if (!ids.length) return;
+  const clean = ids.filter(n => Number.isInteger(n) && n > 0);
+  if (!clean.length) return;
+  const placeholders = clean.map((_, i) => `$${i + 2}`).join(',');
+  try {
+    await pool.query(
+      `UPDATE visitor_messages SET read = $1 WHERE teacher_id = $${clean.length + 2} AND id IN (${placeholders})`,
+      [read ? 1 : 0, ...clean, teacherId]
+    );
+  } catch {
+    // legacy DB without the read column — non-fatal
+  }
+}
+
+export async function deleteMessage(id: number, teacherId: number): Promise<boolean> {
+  const { rows } = await pool.query(
+    'SELECT id FROM visitor_messages WHERE id = $1 AND teacher_id = $2',
+    [id, teacherId]
+  );
+  if (!rows.length) return false;
+  await pool.query('DELETE FROM visitor_messages WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  return true;
+}
+
+// ─── site analytics ───
+
+export async function recordView(teacherId: number, pagePath: string): Promise<void> {
+  try {
+    await pool.query('INSERT INTO site_views (teacher_id, path) VALUES ($1, $2)', [teacherId, String(pagePath || '').slice(0, 200)]);
+  } catch {}
+}
+
+export interface ViewStats {
+  total: number;
+  byPath: { path: string; count: number }[];
+  byDay: { day: string; count: number }[];
+}
+
+export async function getViewStats(teacherId: number, days = 30): Promise<ViewStats> {
+  const safeDays = Math.max(1, Math.min(365, Math.floor(days) || 30));
+  const cutoffIso = new Date(Date.now() - safeDays * 86400000).toISOString();
+  try {
+    if (backend === 'pg') {
+      const totalQ = await pool.query('SELECT COUNT(*)::int as c FROM site_views WHERE teacher_id = $1 AND created_at >= $2', [teacherId, cutoffIso]);
+      const byPathQ = await pool.query(
+        'SELECT path, COUNT(*)::int as c FROM site_views WHERE teacher_id = $1 AND created_at >= $2 GROUP BY path ORDER BY c DESC LIMIT 20',
+        [teacherId, cutoffIso]
+      );
+      const byDayQ = await pool.query(
+        "SELECT to_char(created_at, 'YYYY-MM-DD') as day, COUNT(*)::int as c FROM site_views WHERE teacher_id = $1 AND created_at >= $2 GROUP BY day ORDER BY day ASC",
+        [teacherId, cutoffIso]
+      );
+      return {
+        total: Number(totalQ.rows[0]?.c || 0),
+        byPath: byPathQ.rows.map((r: any) => ({ path: String(r.path || '/'), count: Number(r.c) })),
+        byDay: byDayQ.rows.map((r: any) => ({ day: String(r.day), count: Number(r.c) })),
+      };
+    }
+  } catch {}
+  // Fallback / SQLite path — still capped, but do grouping in JS as before (smaller fetch with cutoff pushed to SQL)
+  const { rows } = await pool.query(
+    'SELECT path, created_at FROM site_views WHERE teacher_id = $1 AND created_at >= $2 ORDER BY created_at DESC LIMIT 5000',
+    [teacherId, cutoffIso]
+  );
+  const byPath = new Map<string, number>();
+  const byDay = new Map<string, number>();
+  let total = 0;
+  for (const r of rows) {
+    total++;
+    const p = String(r.path || '/') || '/';
+    byPath.set(p, (byPath.get(p) || 0) + 1);
+    const t = new Date(r.created_at).getTime();
+    const day = Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : String(r.created_at).slice(0, 10);
+    byDay.set(day, (byDay.get(day) || 0) + 1);
+  }
+  return {
+    total,
+    byPath: [...byPath.entries()].map(([path, count]) => ({ path, count })).sort((a, b) => b.count - a.count).slice(0, 20),
+    byDay: [...byDay.entries()].map(([day, count]) => ({ day, count })).sort((a, b) => a.day.localeCompare(b.day)),
+  };
+}
+
+// ─── public directory ───
+
+export interface DirectoryEntry {
+  teacherId: number;
+  name: string;
+  subject: string;
+  photo: string;
+  tagline: string;
+  updatedAt: string;
+}
+
+export async function listPublicSites(limit = 60): Promise<DirectoryEntry[]> {
+  const { rows } = await pool.query(
+    'SELECT u.id AS teacher_id, u.name AS user_name, uc.data AS data, uc.updated_at AS updated_at FROM users u JOIN user_content uc ON uc.user_id = u.id ORDER BY uc.updated_at DESC LIMIT $1',
+    [Math.min(Math.max(limit, 1), 200)]
+  );
+  const out: DirectoryEntry[] = [];
+  for (const r of rows) {
+    let d: any = (r as any).data;
+    if (typeof d === 'string') {
+      try { d = JSON.parse(d); } catch { continue; }
+    }
+    if (!d || typeof d !== 'object') continue;
+    if ((d as any)?.meta?.directoryListed === false) continue;
+    if (!(d as any)?.hero?.initials) continue;
+    out.push({
+      teacherId: Number((r as any).teacher_id),
+      name: String((d as any)?.site?.title || (r as any).user_name || 'Teacher').replace(/ — Teacher Portfolio$/, ''),
+      subject: String((d as any)?.hero?.tagline || '').replace(/ Portfolio$/, ''),
+      photo: String((d as any)?.hero?.heroImage || (d as any)?.hero?.photo || ''),
+      tagline: String((d as any)?.hero?.description || (d as any)?.seo?.metaDesc || '').slice(0, 140),
+      updatedAt: String((r as any).updated_at ?? ''),
+    });
+  }
+  return out;
+}
+
+// ─── bookings ───
+
+export interface BookingSlot {
+  id?: number;
+  weekday: number;
+  start: string;
+  end: string;
+}
+
+export async function getSlots(teacherId: number): Promise<BookingSlot[]> {
+  const { rows } = await pool.query(
+    'SELECT id, weekday, "start", "end" FROM booking_slots WHERE teacher_id = $1 ORDER BY weekday ASC, "start" ASC',
+    [teacherId]
+  );
+  return rows.map((r: any) => ({ id: Number(r.id), weekday: Number(r.weekday), start: String(r.start), end: String(r.end) }));
+}
+
+export async function saveSlots(teacherId: number, slots: BookingSlot[]): Promise<void> {
+  await pool.query('DELETE FROM booking_slots WHERE teacher_id = $1', [teacherId]);
+  for (const s of slots) {
+    await pool.query('INSERT INTO booking_slots (teacher_id, weekday, "start", "end") VALUES ($1, $2, $3, $4)', [teacherId, s.weekday, s.start, s.end]);
+  }
+}
+
+export interface Booking {
+  id: number;
+  teacher_id: number;
+  name: string;
+  email: string;
+  date: string;
+  time: string;
+  note: string;
+  status: string;
+  created_at: string;
+}
+
+export async function createBooking(b: { teacher_id: number; name: string; email: string; date: string; time: string; note: string }): Promise<Booking> {
+  const { rows } = await pool.query(
+    'INSERT INTO bookings (teacher_id, name, email, "date", "time", note, status) VALUES ($1, $2, $3, $4, $5, $6, \'pending\') RETURNING *',
+    [b.teacher_id, b.name, b.email, b.date, b.time, b.note]
+  );
+  return rows[0];
+}
+
+export async function listBookings(teacherId: number, includeStatuses?: string[]): Promise<Booking[]> {
+  if (includeStatuses && includeStatuses.length > 0) {
+    const placeholders = includeStatuses.map((_, i) => `$${i + 2}`).join(',');
+    const { rows } = await pool.query(
+      `SELECT * FROM bookings WHERE teacher_id = $1 AND status IN (${placeholders}) ORDER BY "date" ASC, "time" ASC LIMIT 500`,
+      [teacherId, ...includeStatuses]
+    );
+    return rows;
+  }
+  const { rows } = await pool.query('SELECT * FROM bookings WHERE teacher_id = $1 ORDER BY "date" ASC, "time" ASC LIMIT 500', [teacherId]);
+  return rows;
+}
+
+export async function setBookingStatus(id: number, teacherId: number, status: string): Promise<boolean> {
+  if (!['pending', 'confirmed', 'cancelled'].includes(status)) return false;
+  const { rows } = await pool.query('SELECT id FROM bookings WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('UPDATE bookings SET status = $1 WHERE id = $2 AND teacher_id = $3', [status, id, teacherId]);
+  return true;
+}
+
+export async function deleteBooking(id: number, teacherId: number): Promise<boolean> {
+  const { rows } = await pool.query('SELECT id FROM bookings WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('DELETE FROM bookings WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  return true;
+}
+
+// ─── blog posts ───
+
+export interface Post {
+  id: number;
+  teacher_id: number;
+  slug: string;
+  title: string;
+  body: string;
+  cover: string;
+  published: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function listPosts(teacherId: number, publishedOnly: boolean): Promise<Post[]> {
+  const { rows } = publishedOnly
+    ? await pool.query('SELECT * FROM posts WHERE teacher_id = $1 AND published = $2 ORDER BY created_at DESC LIMIT 200', [teacherId, 1])
+    : await pool.query('SELECT * FROM posts WHERE teacher_id = $1 ORDER BY created_at DESC LIMIT 200', [teacherId]);
+  return rows.map((r: any) => ({ ...r, published: Number(r.published) ? 1 : 0 }));
+}
+
+export async function getPost(teacherId: number, slug: string): Promise<Post | null> {
+  const { rows } = await pool.query('SELECT * FROM posts WHERE teacher_id = $1 AND slug = $2 LIMIT 1', [teacherId, slug]);
+  if (!rows.length) return null;
+  return { ...rows[0], published: Number(rows[0].published) ? 1 : 0 };
+}
+
+export async function savePost(p: { id?: number; teacher_id: number; slug: string; title: string; body: string; cover: string; published: number }): Promise<Post> {
+  if (p.id) {
+    const { rows } = await pool.query('SELECT id FROM posts WHERE id = $1 AND teacher_id = $2', [p.id, p.teacher_id]);
+    if (!rows.length) throw new Error('not-found');
+    const { rows: out } = await pool.query(
+      'UPDATE posts SET slug = $1, title = $2, body = $3, cover = $4, published = $5, updated_at = NOW() WHERE id = $6 AND teacher_id = $7 RETURNING *',
+      [p.slug, p.title, p.body, p.cover, p.published ? 1 : 0, p.id, p.teacher_id]
+    );
+    // SQLite RETURNING on UPDATE returns the row; pg too. Fallback fetch:
+    if (out.length) return { ...out[0], published: Number(out[0].published) ? 1 : 0 };
+    const again = await getPost(p.teacher_id, p.slug);
+    if (!again) throw new Error('not-found');
+    return again;
+  }
+  // Unique slug per teacher
+  let slug = p.slug;
+  for (let i = 2; ; i++) {
+    const existing = await getPost(p.teacher_id, slug);
+    if (!existing) break;
+    slug = `${p.slug}-${i}`;
+    if (i > 50) throw new Error('slug-exhausted');
+  }
+  const { rows } = await pool.query(
+    'INSERT INTO posts (teacher_id, slug, title, body, cover, published) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [p.teacher_id, slug, p.title, p.body, p.cover, p.published ? 1 : 0]
+  );
+  if (rows.length) return { ...rows[0], published: Number(rows[0].published) ? 1 : 0 };
+  const created = await getPost(p.teacher_id, slug);
+  if (!created) throw new Error('create-failed');
+  return created;
+}
+
+export async function deletePost(id: number, teacherId: number): Promise<boolean> {
+  const { rows } = await pool.query('SELECT id FROM posts WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('DELETE FROM posts WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  return true;
+}
+
+// ─── custom domains ───
+
+export interface SiteDomain {
+  id: number;
+  domain: string;
+  verified: number;
+  created_at: string;
+}
+
+export async function listDomains(teacherId: number): Promise<SiteDomain[]> {
+  const { rows } = await pool.query('SELECT id, domain, verified, created_at FROM site_domains WHERE teacher_id = $1 ORDER BY created_at ASC', [teacherId]);
+  return rows.map((r: any) => ({ id: Number(r.id), domain: String(r.domain), verified: Number(r.verified) ? 1 : 0, created_at: String(r.created_at ?? '') }));
+}
+
+export async function addDomain(teacherId: number, domain: string): Promise<SiteDomain> {
+  const existing = await pool.query('SELECT id FROM site_domains WHERE teacher_id = $1 AND domain = $2', [teacherId, domain]);
+  if (existing.rows.length) {
+    const r = existing.rows[0];
+    return { id: Number(r.id), domain, verified: Number(r.verified) ? 1 : 0, created_at: String(r.created_at ?? '') };
+  }
+  const { rows } = await pool.query('INSERT INTO site_domains (teacher_id, domain, verified) VALUES ($1, $2, 0) RETURNING *', [teacherId, domain]);
+  if (rows.length) return { id: Number(rows[0].id), domain, verified: 0, created_at: String(rows[0].created_at ?? '') };
+  const again = await pool.query('SELECT id, domain, verified, created_at FROM site_domains WHERE teacher_id = $1 AND domain = $2', [teacherId, domain]);
+  const r = again.rows[0];
+  return { id: Number(r.id), domain, verified: Number(r.verified) ? 1 : 0, created_at: String(r.created_at ?? '') };
+}
+
+export async function setDomainVerified(id: number, teacherId: number, verified: boolean): Promise<void> {
+  await pool.query('UPDATE site_domains SET verified = $1 WHERE id = $2 AND teacher_id = $3', [verified ? 1 : 0, id, teacherId]);
+}
+
+export async function deleteDomain(id: number, teacherId: number): Promise<boolean> {
+  const { rows } = await pool.query('SELECT id FROM site_domains WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('DELETE FROM site_domains WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  return true;
+}
+
+// ─── teacher notification settings ───
+
+export interface TeacherSettings {
+  notify_email: string;
+  notify_on_message: number;
+  notify_on_booking: number;
+  mail_provider: string;
+  mail_from: string;
+  resend_key: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_pass: string;
+}
+
+const SETTINGS_DEFAULTS: TeacherSettings = {
+  notify_email: '', notify_on_message: 1, notify_on_booking: 1, mail_provider: '',
+  mail_from: '', resend_key: '', smtp_host: '', smtp_port: 587, smtp_user: '', smtp_pass: '',
+};
+
+export async function getTeacherSettings(teacherId: number): Promise<TeacherSettings> {
+  const { rows } = await pool.query('SELECT * FROM teacher_settings WHERE teacher_id = $1', [teacherId]);
+  if (!rows.length) return { ...SETTINGS_DEFAULTS };
+  const r = rows[0];
+  return {
+    notify_email: String(r.notify_email || ''),
+    notify_on_message: Number(r.notify_on_message) ? 1 : 0,
+    notify_on_booking: Number(r.notify_on_booking) ? 1 : 0,
+    mail_provider: String(r.mail_provider || ''),
+    mail_from: String(r.mail_from || ''),
+    resend_key: String(r.resend_key || ''),
+    smtp_host: String(r.smtp_host || ''),
+    smtp_port: Number(r.smtp_port) || 587,
+    smtp_user: String(r.smtp_user || ''),
+    smtp_pass: String(r.smtp_pass || ''),
+  };
+}
+
+export async function saveTeacherSettings(teacherId: number, s: Partial<TeacherSettings>): Promise<TeacherSettings> {
+  const cur = await getTeacherSettings(teacherId);
+  const next: TeacherSettings = {
+    notify_email: String(s.notify_email ?? cur.notify_email).slice(0, 160),
+    notify_on_message: s.notify_on_message === undefined ? cur.notify_on_message : (s.notify_on_message ? 1 : 0),
+    notify_on_booking: s.notify_on_booking === undefined ? cur.notify_on_booking : (s.notify_on_booking ? 1 : 0),
+    mail_provider: ['resend', 'smtp', ''].includes(String(s.mail_provider ?? cur.mail_provider)) ? String(s.mail_provider ?? cur.mail_provider) : '',
+    mail_from: String(s.mail_from ?? cur.mail_from).slice(0, 160),
+    resend_key: String(s.resend_key ?? cur.resend_key).slice(0, 200),
+    smtp_host: String(s.smtp_host ?? cur.smtp_host).slice(0, 200),
+    smtp_port: Math.min(65535, Math.max(1, Number(s.smtp_port ?? cur.smtp_port) || 587)),
+    smtp_user: String(s.smtp_user ?? cur.smtp_user).slice(0, 200),
+    smtp_pass: String(s.smtp_pass ?? cur.smtp_pass).slice(0, 300),
+  };
+  if (backend === 'pg') {
+    await pool.query(
+      'INSERT INTO teacher_settings (teacher_id, notify_email, notify_on_message, notify_on_booking, mail_provider, mail_from, resend_key, smtp_host, smtp_port, smtp_user, smtp_pass) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (teacher_id) DO UPDATE SET notify_email=$2, notify_on_message=$3, notify_on_booking=$4, mail_provider=$5, mail_from=$6, resend_key=$7, smtp_host=$8, smtp_port=$9, smtp_user=$10, smtp_pass=$11',
+      [teacherId, next.notify_email, next.notify_on_message, next.notify_on_booking, next.mail_provider, next.mail_from, next.resend_key, next.smtp_host, next.smtp_port, next.smtp_user, next.smtp_pass]
+    );
+  } else {
+    await pool.query(
+      'INSERT INTO teacher_settings (teacher_id, notify_email, notify_on_message, notify_on_booking, mail_provider, mail_from, resend_key, smtp_host, smtp_port, smtp_user, smtp_pass) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT(teacher_id) DO UPDATE SET notify_email=excluded.notify_email, notify_on_message=excluded.notify_on_message, notify_on_booking=excluded.notify_on_booking, mail_provider=excluded.mail_provider, mail_from=excluded.mail_from, resend_key=excluded.resend_key, smtp_host=excluded.smtp_host, smtp_port=excluded.smtp_port, smtp_user=excluded.smtp_user, smtp_pass=excluded.smtp_pass',
+      [teacherId, next.notify_email, next.notify_on_message, next.notify_on_booking, next.mail_provider, next.mail_from, next.resend_key, next.smtp_host, next.smtp_port, next.smtp_user, next.smtp_pass]
+    );
+  }
+  return next;
+}
+
+// ─── blog comments (moderated) ───
+
+export interface PostComment {
+  id: number;
+  post_slug: string;
+  name: string;
+  text: string;
+  status: string;
+  created_at: string;
+}
+
+export async function addComment(teacherId: number, slug: string, name: string, text: string): Promise<PostComment> {
+  const { rows } = await pool.query(
+    "INSERT INTO post_comments (teacher_id, post_slug, name, text, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *",
+    [teacherId, slug, name, text]
+  );
+  if (rows.length) return rows[0];
+  const { rows: again } = await pool.query('SELECT * FROM post_comments WHERE teacher_id = $1 AND post_slug = $2 ORDER BY id DESC LIMIT 1', [teacherId, slug]);
+  return again[0];
+}
+
+export async function listComments(teacherId: number, slug: string | null, approvedOnly: boolean): Promise<PostComment[]> {
+  if (slug) {
+    const { rows } = approvedOnly
+      ? await pool.query("SELECT * FROM post_comments WHERE teacher_id = $1 AND post_slug = $2 AND status = 'approved' ORDER BY created_at ASC LIMIT 200", [teacherId, slug])
+      : await pool.query('SELECT * FROM post_comments WHERE teacher_id = $1 AND post_slug = $2 ORDER BY created_at ASC LIMIT 200', [teacherId, slug]);
+    return rows;
+  }
+  const { rows } = approvedOnly
+    ? await pool.query("SELECT * FROM post_comments WHERE teacher_id = $1 AND status = 'approved' ORDER BY created_at DESC LIMIT 200", [teacherId])
+    : await pool.query('SELECT * FROM post_comments WHERE teacher_id = $1 ORDER BY created_at DESC LIMIT 200', [teacherId]);
+  return rows;
+}
+
+export async function setCommentStatus(id: number, teacherId: number, status: string): Promise<boolean> {
+  if (!['pending', 'approved'].includes(status)) return false;
+  const { rows } = await pool.query('SELECT id FROM post_comments WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('UPDATE post_comments SET status = $1 WHERE id = $2 AND teacher_id = $3', [status, id, teacherId]);
+  return true;
+}
+
+export async function deleteComment(id: number, teacherId: number): Promise<boolean> {
+  const { rows } = await pool.query('SELECT id FROM post_comments WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('DELETE FROM post_comments WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  return true;
+}
+
+// ─── newsletter subscribers ───
+
+export async function addSubscriber(teacherId: number, email: string): Promise<{ ok: boolean; duplicate?: boolean }> {
+  const existing = await pool.query('SELECT id FROM subscribers WHERE teacher_id = $1 AND email = $2', [teacherId, email.toLowerCase()]);
+  if (existing.rows.length) return { ok: true, duplicate: true };
+  await pool.query('INSERT INTO subscribers (teacher_id, email) VALUES ($1, $2)', [teacherId, email.toLowerCase()]);
+  return { ok: true };
+}
+
+export async function listSubscribers(teacherId: number): Promise<{ id: number; email: string; created_at: string }[]> {
+  const { rows } = await pool.query('SELECT id, email, created_at FROM subscribers WHERE teacher_id = $1 ORDER BY created_at DESC LIMIT 2000', [teacherId]);
+  return rows;
+}
+
+export async function deleteSubscriber(id: number, teacherId: number): Promise<boolean> {
+  const { rows } = await pool.query('SELECT id FROM subscribers WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('DELETE FROM subscribers WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  return true;
+}
+
+// ─── testimonial submissions ───
+
+export interface TestimonialSubmission {
+  id: number;
+  name: string;
+  text: string;
+  context: string;
+  status: string;
+  created_at: string;
+}
+
+export async function addTestimonial(teacherId: number, name: string, text: string, context: string): Promise<TestimonialSubmission> {
+  const { rows } = await pool.query(
+    "INSERT INTO testimonial_submissions (teacher_id, name, text, context, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *",
+    [teacherId, name, text, context]
+  );
+  if (rows.length) return rows[0];
+  const { rows: again } = await pool.query('SELECT * FROM testimonial_submissions WHERE teacher_id = $1 ORDER BY id DESC LIMIT 1', [teacherId]);
+  return again[0];
+}
+
+export async function listTestimonials(teacherId: number, approvedOnly: boolean): Promise<TestimonialSubmission[]> {
+  const { rows } = approvedOnly
+    ? await pool.query("SELECT * FROM testimonial_submissions WHERE teacher_id = $1 AND status = 'approved' ORDER BY created_at DESC LIMIT 200", [teacherId])
+    : await pool.query('SELECT * FROM testimonial_submissions WHERE teacher_id = $1 ORDER BY created_at DESC LIMIT 200', [teacherId]);
+  return rows;
+}
+
+export async function setTestimonialStatus(id: number, teacherId: number, status: string): Promise<boolean> {
+  if (!['pending', 'approved'].includes(status)) return false;
+  const { rows } = await pool.query('SELECT id FROM testimonial_submissions WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('UPDATE testimonial_submissions SET status = $1 WHERE id = $2 AND teacher_id = $3', [status, id, teacherId]);
+  return true;
+}
+
+export async function deleteTestimonial(id: number, teacherId: number): Promise<boolean> {
+  const { rows } = await pool.query('SELECT id FROM testimonial_submissions WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  if (!rows.length) return false;
+  await pool.query('DELETE FROM testimonial_submissions WHERE id = $1 AND teacher_id = $2', [id, teacherId]);
+  return true;
+}
+
+/** Full snapshot for a single version (preview + restore). */
+export async function getHistoryEntry(id: number, userId: number): Promise<{ id: number; created_at: string; data: any } | null> {
+  const { rows } = await pool.query(
+    'SELECT id, data, created_at FROM history WHERE id = $1 AND user_id = $2',
+    [Math.floor(id), userId]
+  );
+  if (rows.length === 0) return null;
+  const data = parseHistoryData(rows[0].data);
+  if (!data) return null;
+  return { id: Number(rows[0].id), created_at: String(rows[0].created_at ?? ''), data };
+}
+
 // ─── section renderers with variant support ─────────────────
 function renderHero(c: any, e: any, variant: string): string {
   const h = c.hero || {};
@@ -305,6 +962,14 @@ function renderHero(c: any, e: any, variant: string): string {
   const title = t(h.title);
   const desc = t(h.description);
   const initials = t(h.initials);
+  // Profile photo collected in chat (heroImage) or Studio — replaces the initials avatar.
+  // Strict allowlist: http(s), protocol-relative, root-relative, or data:image only.
+  const photoUrl = String(h.heroImage || h.photo || '');
+  const photo = /^(https?:\/\/|\/\/|\/|data:image\/)/i.test(photoUrl) ? e(photoUrl) : '';
+  const avatarInner = photo
+    ? `<img src="${photo}" alt="${t(h.title || 'Teacher photo')}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" loading="lazy" />`
+    : `<span class="hero__avatar-text"${variant === 'split' ? ' style="font-size:3.5rem"' : ''}>${initials}</span>`;
+  const avatarStyle = photo ? 'overflow:hidden;' : '';
   const aboutSection = c.layout?.sections?.find((s: any) => s.type === 'about') ? '#about' : '#contact';
   const scrollTarget = aboutSection === '#about' ? 'about' : 'contact';
 
@@ -330,7 +995,7 @@ function renderHero(c: any, e: any, variant: string): string {
       <div class="hero__actions"><a href="#contact" class="btn btn--primary">Get in Touch</a><a href="${aboutSection}" class="btn btn--outline">Learn More</a></div>
     </div>
     <div class="hero__visual" style="display:flex;justify-content:center;align-items:center">
-      <div style="position:relative"><div class="hero__avatar" style="width:220px;height:220px"><span class="hero__avatar-text" style="font-size:3.5rem">${initials}</span></div><div class="hero__ring hero__ring--1" style="width:300px;height:300px"></div><div class="hero__ring hero__ring--2" style="width:380px;height:380px"></div></div>
+      <div style="position:relative"><div class="hero__avatar" style="width:220px;height:220px;${avatarStyle}">${avatarInner}</div><div class="hero__ring hero__ring--1" style="width:300px;height:300px"></div><div class="hero__ring hero__ring--2" style="width:380px;height:380px"></div></div>
     </div>
   </div>
   <div class="hero__scroll" onclick="document.getElementById('${scrollTarget}').scrollIntoView({behavior:'smooth'})"><span>Scroll</span><div class="hero__scroll-line"></div></div>
@@ -351,7 +1016,7 @@ function renderHero(c: any, e: any, variant: string): string {
       </div>
     </div>
     <div class="hero__visual">
-      <div class="hero__avatar"><span class="hero__avatar-text">${initials}</span></div>
+      <div class="hero__avatar"${photo ? ' style="overflow:hidden"' : ''}>${avatarInner}</div>
       <div class="hero__ring hero__ring--1"></div>
       <div class="hero__ring hero__ring--2"></div>
     </div>
@@ -670,7 +1335,7 @@ const NAV_LABELS: Record<string, string> = {
 
 // ─── main build function ────────────────────────────────────
 
-export async function runBuild(data: any, teacherId: number): Promise<string> {
+export async function runBuild(data: any, teacherId: number | string): Promise<string> {
   const fs = require('fs');
   const path = require('path');
   const distDir = path.join(process.cwd(), 'public', '_site', String(teacherId));
@@ -741,14 +1406,43 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
     contact: vis.showContact !== false,
   };
 
+  // ── Multi-page structure: each section type gets its own page ──
+  // index.html = hero + overview cards linking to subpages
+  // about.html, courses.html, philosophy.html, achievements.html,
+  // contact.html = one full section each; custom sections get sec-<id>.html
+  const PAGE_FILE: Record<string, string> = {
+    hero: 'index.html',
+    about: 'about.html',
+    courses: 'courses.html',
+    philosophy: 'philosophy.html',
+    achievements: 'achievements.html',
+    contact: 'contact.html',
+  };
+
   const customSectionsArr: Record<string, any> = {};
   (data.customSections || []).forEach(function (s: any) {
     customSectionsArr[s.id] = s;
   });
 
-  // Generate sections in order with variant support
-  const sectionsHtml: string[] = [];
-  const navEntries: { id: string; label: string }[] = [];
+  // pageFile -> rendered section html chunks
+  const pageSections: Record<string, string[]> = {};
+  // ordered nav entries: { file, label }
+  const navEntries: { file: string; label: string }[] = [];
+  const seenNav = new Set<string>();
+
+  function pushNav(file: string, label: string) {
+    if (!seenNav.has(file)) {
+      seenNav.add(file);
+      navEntries.push({ file, label });
+    }
+  }
+
+  function pushSection(type: string, customId: string, sectionHtml: string, label: string) {
+    const file = type === 'custom' ? 'sec-' + customId + '.html' : (PAGE_FILE[type] || 'index.html');
+    if (!pageSections[file]) pageSections[file] = [];
+    pageSections[file].push(sectionHtml);
+    if (label) pushNav(file, label);
+  }
 
   for (const cfg of resolvedSections) {
     const type = cfg.type || '';
@@ -758,52 +1452,263 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
     if (type === 'custom') {
       const custom = customSectionsArr[id] || customSectionsArr[cfg.id || ''];
       if (custom) {
-        sectionsHtml.push(applySectionBg(renderCustomSection(custom, e), cfg, e));
-        if (custom.title) navEntries.push({ id: 'sec-' + id, label: custom.title });
+        pushSection('custom', id, applySectionBg(renderCustomSection(custom, e), cfg, e), custom.title || 'Page');
       }
     } else if (type === 'hero' && renderHero) {
-      sectionsHtml.push(applySectionBg(renderHero(data, e, variant), cfg, e));
-      navEntries.push({ id: 'home', label: 'Home' });
+      pushSection('hero', id, applySectionBg(renderHero(data, e, variant), cfg, e), 'Home');
     } else if (type === 'about' && renderAbout) {
       if (isVisible.about === false) continue;
-      sectionsHtml.push(applySectionBg(renderAbout(data, e, variant), cfg, e));
-      navEntries.push({ id: 'about', label: 'About' });
+      pushSection('about', id, applySectionBg(renderAbout(data, e, variant), cfg, e), NAV_LABELS.about);
     } else if (type === 'courses' && renderCourses) {
       if (isVisible.courses === false) continue;
-      sectionsHtml.push(applySectionBg(renderCourses(data, e, variant), cfg, e));
-      navEntries.push({ id: 'courses', label: 'Courses' });
+      pushSection('courses', id, applySectionBg(renderCourses(data, e, variant), cfg, e), NAV_LABELS.courses);
     } else if (type === 'philosophy' && renderPhilosophy) {
       if (isVisible.philosophy === false) continue;
-      sectionsHtml.push(applySectionBg(renderPhilosophy(data, e, variant), cfg, e));
-      navEntries.push({ id: 'philosophy', label: 'Philosophy' });
+      pushSection('philosophy', id, applySectionBg(renderPhilosophy(data, e, variant), cfg, e), NAV_LABELS.philosophy);
     } else if (type === 'achievements' && renderAchievements) {
       if (isVisible.achievements === false) continue;
-      sectionsHtml.push(applySectionBg(renderAchievements(data, e, variant), cfg, e));
-      navEntries.push({ id: 'achievements', label: 'Achievements' });
+      pushSection('achievements', id, applySectionBg(renderAchievements(data, e, variant), cfg, e), NAV_LABELS.achievements);
     } else if (type === 'contact' && renderContact) {
       if (isVisible.contact === false) continue;
-      sectionsHtml.push(applySectionBg(renderContact(data, e, variant), cfg, e));
-      navEntries.push({ id: 'contact', label: 'Contact' });
+      pushSection('contact', id, applySectionBg(renderContact(data, e, variant), cfg, e), NAV_LABELS.contact);
     }
   }
 
-  // Append any custom sections not referenced in layout
+  // Append any custom sections not referenced in layout (each its own page)
   (data.customSections || []).forEach(function (s: any) {
     const already = resolvedSections.some(function (cfg: SectionConfig) {
       return (cfg.id || cfg.type) === s.id;
     });
     if (!already) {
-      sectionsHtml.push(renderCustomSection(s, e));
-      if (s.title) navEntries.push({ id: 'sec-' + s.id, label: s.title });
+      pushSection('custom', s.id, renderCustomSection(s, e), s.title || 'Page');
     }
   });
 
-  // Generate navbar links dynamically from resolved order
-  let navHtml = '';
-  navEntries.forEach(function (entry, i) {
-    const active = i === 0 ? ' active' : '';
-    navHtml += '<li><a href="#' + entry.id + '" class="navbar__link' + active + '">' + e(entry.label) + '</a></li>';
-  });
+  // ── Blog: index page + one page per published post ──
+  let blogPosts: any[] = [];
+  try {
+    const res = await pool.query(
+      'SELECT slug, title, body, cover, created_at FROM posts WHERE teacher_id = $1 AND published = $2 ORDER BY created_at DESC LIMIT 100',
+      [Number(teacherId) || 0, 1]
+    );
+    blogPosts = res.rows;
+  } catch {}
+  function safeCover(url: string): string {
+    const u = String(url || '');
+    return /^(https?:\/\/|\/\/|\/|data:image\/)/i.test(u) ? e(u) : '';
+  }
+  function postFileName(slug: string): string {
+    return 'post-' + String(slug || '').replace(/[^a-z0-9-]/g, '').slice(0, 80) + '.html';
+  }
+  function postParagraphs(body: string): string {
+    return String(body || '')
+      .split(/\n{2,}|\r\n{2,}/)
+      .map(p => p.trim())
+      .filter(Boolean)
+      .map(p => '<p>' + e(p).replace(/\n/g, '<br>') + '</p>')
+      .join('\n');
+  }
+  function readingTime(body: string): number {
+    const words = String(body || '').split(/\s+/).filter(Boolean).length;
+    return Math.max(1, Math.round(words / 200));
+  }
+  if (blogPosts.length > 0) {
+    const cards = blogPosts.map(function (p: any) {
+      const file = postFileName(p.slug);
+      const cover = safeCover(p.cover);
+      const date = (() => { try { return new Date(p.created_at).toLocaleDateString(); } catch { return ''; } })();
+      return '<a href="' + file + '" class="course-card" style="text-decoration:none;color:inherit;display:block">'
+        + (cover ? '<img src="' + cover + '" alt="" loading="lazy" style="width:100%;height:150px;object-fit:cover;border-radius:12px;margin-bottom:12px;display:block" />' : '')
+        + '<h3 class="course-card__title">' + e(p.title || 'Untitled') + '</h3>'
+        + '<p class="course-card__desc">' + e(String(p.body || '').replace(/\s+/g, ' ').slice(0, 140)) + '</p>'
+        + '<span class="course-card__level">' + e(date) + ' · ' + readingTime(p.body) + ' min read &rarr;</span></a>';
+    }).join('');
+    pageSections['blog.html'] = [`<section class="section" id="blog">
+  <div class="container">
+    <div class="section__header reveal">
+      <span class="section__badge">Blog</span>
+      <h2 class="section__title">Notes &amp; <span class="text-gradient">Stories</span></h2>
+      <p class="section__subtitle">Thoughts from my classroom.</p>
+    </div>
+    <div class="courses__grid">${cards}</div>
+  </div>
+</section>`];
+    pushNav('blog.html', 'Blog');
+    for (const p of blogPosts) {
+      const file = postFileName(p.slug);
+      const cover = safeCover(p.cover);
+      const date = (() => { try { return new Date(p.created_at).toLocaleDateString(); } catch { return ''; } })();
+      let approved: any[] = [];
+      try {
+        const res = await pool.query("SELECT name, text, created_at FROM post_comments WHERE teacher_id = $1 AND post_slug = $2 AND status = 'approved' ORDER BY created_at ASC LIMIT 100", [Number(teacherId) || 0, String(p.slug)]);
+        approved = res.rows;
+      } catch {}
+      const commentsHtml = approved.length
+        ? approved.map(function (cm: any) {
+            return '<div style="padding:14px 16px;border:1px solid rgba(255,255,255,0.08);border-radius:12px;margin-bottom:10px;background:rgba(255,255,255,0.02)">'
+              + '<strong style="font-size:.82rem;color:#fff">' + e(cm.name || 'Reader') + '</strong>'
+              + '<p style="font-size:.85rem;color:#cbd5e1;margin:4px 0 0;line-height:1.6">' + e(cm.text || '') + '</p></div>';
+          }).join('')
+        : '<p style="font-size:.85rem;color:#64748b">No comments yet — be the first!</p>';
+      pageSections[file] = [`<section class="section" id="post">
+  <div class="container" style="max-width:720px">
+    <a href="blog.html" class="btn btn--outline" style="margin-bottom:20px;display:inline-block">&larr; All posts</a>
+    <span class="section__badge reveal">${e(date)} · ${readingTime(p.body)} min read</span>
+    <h1 class="section__title reveal" style="text-align:left;margin:12px 0 8px">${e(p.title || 'Untitled')}</h1>
+    ${cover ? '<img src="' + cover + '" alt="" loading="lazy" style="width:100%;max-height:360px;object-fit:cover;border-radius:16px;margin:16px 0 8px;display:block" />' : ''}
+    <div class="reveal" style="font-size:1rem;line-height:1.8;color:#cbd5e1">${postParagraphs(p.body)}</div>
+  </div>
+</section>
+<section class="section" id="comments" style="padding-top:0">
+  <div class="container" style="max-width:720px">
+    <h2 class="section__title reveal" style="text-align:left">Comments (${approved.length})</h2>
+    <div class="reveal" style="margin:14px 0 20px">${commentsHtml}</div>
+    <form data-comment-form data-teacher-id="{{TEACHER_ID}}" data-slug="${e(String(p.slug))}" class="reveal" style="display:flex;flex-direction:column;gap:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:18px">
+      <strong style="color:#fff;font-size:.9rem">Leave a comment</strong>
+      <input name="name" required maxlength="60" placeholder="Your name" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:#0f172a;color:#fff;font-size:.85rem;outline:none" />
+      <textarea name="text" required maxlength="1000" rows="3" placeholder="Thoughts? (held for moderation)" style="padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:#0f172a;color:#fff;font-size:.85rem;outline:none;resize:vertical"></textarea>
+      <button type="submit" style="align-self:flex-start;padding:.6rem 1.4rem;border-radius:999px;font-weight:700;font-size:.8rem;color:#fff;border:none;cursor:pointer">Post Comment</button>
+      <p data-comment-msg style="font-size:.78rem;margin:0;min-height:1.2em;color:#94a3b8"></p>
+    </form>
+  </div>
+</section>`];
+    }
+  }
+
+  // Overview cards on the home page linking to every subpage
+  function renderOverviewCards(): string {
+    const cards = navEntries
+      .filter(function (n) { return n.file !== 'index.html'; })
+      .map(function (n) {
+        return '<a href="' + n.file + '" class="course-card" style="text-decoration:none;color:inherit;display:block">'
+          + '<h3 class="course-card__title">' + e(n.label) + '</h3>'
+          + '<p class="course-card__desc">Explore my ' + e(n.label.toLowerCase()) + '.</p>'
+          + '<span class="course-card__level">Visit page &rarr;</span></a>';
+      })
+      .join('');
+    if (!cards) return '';
+    return `<section class="section" id="explore">
+  <div class="container">
+    <div class="section__header reveal">
+      <span class="section__badge">Explore</span>
+      <h2 class="section__title">Discover <span class="text-gradient">More</span></h2>
+      <p class="section__subtitle">Browse each section of my portfolio.</p>
+    </div>
+    <div class="courses__grid">${cards}</div>
+  </div>
+</section>`;
+  }
+
+  // ── Homepage-exclusive showcase sections (data-driven) ──
+  // Shown on index.html only: hero → highlights → featured → teaser →
+  // explore → CTA. Each block renders only when its content exists and
+  // the section is visible.
+  function renderHomeShowcase(): string[] {
+    const out: string[] = [];
+
+    // Stats strip (from About stats)
+    const stats = (data.about && data.about.stats) || [];
+    if (isVisible.about !== false && stats.length > 0) {
+      const statsHtml = stats.map(function (st: any) {
+        return '<div class="stat"><span class="stat__number">' + e(st.number) + e(st.suffix || '') + '</span><span class="stat__label">' + e(st.label) + '</span></div>';
+      }).join('');
+      out.push(`<section class="section home-stats" id="highlights">
+  <div class="container">
+    <div class="about__stats reveal" style="justify-content:center">${statsHtml}</div>
+  </div>
+</section>`);
+    }
+
+    // Featured courses (first 3)
+    const courses = data.courses || [];
+    if (isVisible.courses !== false && courses.length > 0) {
+      const featured = courses.slice(0, 3).map(function (co: any) {
+        return '<div class="course-card"><div class="course-card__icon">' + e(co.icon) + '</div>'
+          + '<h3 class="course-card__title">' + e(co.title) + '</h3>'
+          + '<p class="course-card__desc">' + e(co.description) + '</p>'
+          + '<span class="course-card__level">' + e(co.level) + '</span></div>';
+      }).join('');
+      out.push(`<section class="section section--alt" id="featured">
+  <div class="container">
+    <div class="section__header reveal">
+      <span class="section__badge">Featured</span>
+      <h2 class="section__title">Popular <span class="text-gradient">Courses</span></h2>
+      <p class="section__subtitle">A taste of what I teach.</p>
+    </div>
+    <div class="courses__grid reveal">${featured}</div>
+    <div class="home-featured__more reveal"><a href="courses.html" class="btn btn--outline">View all courses</a></div>
+  </div>
+</section>`);
+    }
+
+    // Philosophy quote teaser
+    const quote = data.philosophy && data.philosophy.quote;
+    if (isVisible.philosophy !== false && quote) {
+      out.push(`<section class="section" id="teaser">
+  <div class="container" style="max-width:720px">
+    <blockquote class="philosophy__quote reveal">
+      <div class="philosophy__quote-mark">"</div>
+      <p>${e(quote)}</p>
+      <cite>${e((data.philosophy || {}).attribution || '')}</cite>
+    </blockquote>
+    <div class="home-featured__more reveal"><a href="philosophy.html" class="btn btn--outline">My teaching beliefs</a></div>
+  </div>
+</section>`);
+    }
+
+    return out;
+  }
+
+  function renderHomeCta(): string {
+    if (isVisible.contact === false) return '';
+    const name = e(data.site?.title || data.hero?.title || 'me');
+    return `<section class="section" id="cta">
+  <div class="container" style="max-width:860px">
+    <div class="home-cta reveal">
+      <h2 class="home-cta__title">Let's work together</h2>
+      <p class="home-cta__desc">Have a question for ${name} about classes, collaboration, or tutoring? I would love to hear from you.</p>
+      <div class="hero__actions" style="justify-content:center"><a href="contact.html" class="btn btn--primary">Get in Touch</a></div>
+    </div>
+  </div>
+</section>`;
+  }
+
+  // Generate navbar links (page links, not anchors)
+  function navHtmlFor(activeFile: string): string {
+    return navEntries.map(function (entry) {
+      const active = entry.file === activeFile ? ' active' : '';
+      return '<li><a href="' + entry.file + '" class="navbar__link' + active + '">' + e(entry.label) + '</a></li>';
+    }).join('');
+  }
+
+  // Rewrite in-page anchors to cross-page links (hero CTAs, etc.)
+  function relinkAnchors(pageHtml: string): string {
+    const map: Record<string, string> = {
+      '#home': 'index.html',
+      '#about': 'about.html',
+      '#courses': 'courses.html',
+      '#philosophy': 'philosophy.html',
+      '#achievements': 'achievements.html',
+      '#contact': 'contact.html',
+      '#blog': 'blog.html',
+    };
+    let out = pageHtml;
+    for (const [anchor, file] of Object.entries(map)) {
+      out = out.split('href="' + anchor + '"').join('href="' + file + '"');
+    }
+    // Custom-section anchors -> their pages
+    out = out.replace(/href="#sec-([A-Za-z0-9_-]+)"/g, 'href="sec-$1.html"');
+    // Hero scroll button scrolled to a section that now lives on another
+    // page — navigate there instead of a no-op scroll.
+    out = out.replace(/document\.getElementById\('([A-Za-z0-9_-]+)'\)\.scrollIntoView\(\{behavior:'smooth'\}\)/g,
+      function (_m, target) {
+        const file = (map as any)['#' + target];
+        if (file) return "window.location.href='" + file + "'";
+        if (String(target).startsWith('sec-')) return "window.location.href='" + target + ".html'";
+        return "document.getElementById('" + target + "')&&document.getElementById('" + target + "').scrollIntoView({behavior:'smooth'})";
+      });
+    return out;
+  }
 
   // Social links
   let socialHtml = '';
@@ -827,29 +1732,65 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
       '<a href="#" aria-label="GitHub" class="footer__social-link"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>';
   }
 
-  // Basic replacements
-  let html = tpl;
-  html = html.replace('{{NAV_HTML}}', navHtml);
-  html = html.replace('{{SECTIONS_HTML}}', sectionsHtml.join('\n\n'));
-  html = html.replace(/{{SITE_TITLE}}/g, e(data.site?.title || data.hero?.initials || ''));
-  html = html.replace(/{{INITIALS}}/g, e(data.hero?.initials || ''));
-  html = html.replace(/{{YEAR}}/g, String(year));
-  html = html.replace('{{SOCIAL_HTML}}', socialHtml);
-  html = html.replace('{{CUSTOM_HEAD}}', data.customHead || '');
-
+  // ── Shared per-page template filler (multi-page) ──
+  const siteTitle = e(data.site?.title || data.hero?.initials || '');
+  const siteInitials = e(data.hero?.initials || '');
   const seo = data.seo || {};
-  const metaTitle = seo.metaTitle || data.site?.title || '';
+  const metaTitleBase = seo.metaTitle || data.site?.title || '';
   const metaDesc = seo.metaDesc || data.hero?.description || '';
-  const ogImage = seo.ogImage || '';
+  const siteBase = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
+  const ogImage = seo.ogImage || (siteBase ? siteBase + '/api/og?teacherId=' + teacherId : '');
   const gaId = seo.googleAnalytics || '';
   const gaScript = gaId ? '<script async src="https://www.googletagmanager.com/gtag/js?id=' + e(gaId) + '"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","' + e(gaId) + '");</script>' : '';
-  html = html.replace(/{{SEO_TITLE}}/g, e(metaTitle));
-  html = html.replace(/{{SEO_DESC}}/g, e(metaDesc));
-  html = html.replace(/{{SEO_IMAGE}}/g, e(ogImage));
-  html = html.replace('{{GA_SCRIPT}}', gaScript);
+  const layoutClass = 'class="layout-' + (data.theme?.layout || 'wide') + ' sec-' + (se_sectionStyle()) + ' card-' + (se_cardStyle()) + '"';
+  function se_sectionStyle() { return (data.style || {}).sectionStyle || 'bordered'; }
+  function se_cardStyle() { return (data.style || {}).cardStyle || 'bordered'; }
+
+  function pageTitleFor(pageFile: string): string {
+    const entry = navEntries.find(function (n) { return n.file === pageFile; });
+    if (!entry || pageFile === 'index.html') return metaTitleBase;
+    return metaTitleBase ? metaTitleBase + ' | ' + entry.label : entry.label;
+  }
+
+  function buildPageHtml(pageFile: string): string {
+    const isHome = pageFile === 'index.html';
+    const chunks = [...(pageSections[pageFile] || [])];
+    if (isHome) {
+      // Homepage flow: hero → highlights → featured → teaser → explore → CTA
+      chunks.push(...renderHomeShowcase());
+      const overview = renderOverviewCards();
+      if (overview) chunks.push(overview);
+      const cta = renderHomeCta();
+      if (cta) chunks.push(cta);
+    }
+    let page = tpl;
+    page = page.replace('{{NAV_HTML}}', navHtmlFor(pageFile));
+    page = page.replace('{{SECTIONS_HTML}}', chunks.join('\n\n'));
+    page = page.replace(/{{SITE_TITLE}}/g, siteTitle);
+    page = page.replace(/{{INITIALS}}/g, siteInitials);
+    page = page.replace(/{{YEAR}}/g, String(year));
+    page = page.replace('{{SOCIAL_HTML}}', socialHtml);
+    page = page.replace('{{CUSTOM_HEAD}}', data.customHead || '');
+    page = page.replace(/{{SEO_TITLE}}/g, e(pageTitleFor(pageFile)));
+    page = page.replace(/{{SEO_DESC}}/g, e(metaDesc));
+    page = page.replace(/{{SEO_IMAGE}}/g, e(ogImage));
+    page = page.replace('{{GA_SCRIPT}}', gaScript);
+    page = page.replace(/{{PRIMARY_COLOR}}/g, selectedThemePrimary());
+    page = page.replace('class="layout-wide"', layoutClass);
+    page = page.replace(/{{TEACHER_ID}}/g, String(teacherId));
+    if (headerPadStyle()) {
+      page = page.replace('</head>', '<style>body.website-page { ' + headerPadStyle() + ' }</style></head>');
+    }
+    return relinkAnchors(page);
+  }
 
   const selectedTheme = themes[data.theme?.name || 'modern'] || themes.modern;
-  html = html.replace(/{{PRIMARY_COLOR}}/g, selectedTheme.primary);
+  function selectedThemePrimary() { return selectedTheme.primary; }
+  function headerPadStyle() {
+    const se2 = data.style || {};
+    const headerPos2 = se2.headerFixed !== false ? 'fixed' : 'relative';
+    return headerPos2 === 'fixed' ? 'padding-top: 80px;' : '';
+  }
   let css = cssTpl;
   css = css.replace(/{{PRIMARY_COLOR}}/g, selectedTheme.primary);
   css = css.replace(/{{PRIMARY_DARK}}/g, darken(selectedTheme.primary));
@@ -860,7 +1801,6 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
   const se = data.style || {};
   const sectionStyle = se.sectionStyle || 'bordered';
   const cardStyle = se.cardStyle || 'bordered';
-  html = html.replace('class="layout-wide"', 'class="layout-' + (data.theme?.layout || 'wide') + ' sec-' + sectionStyle + ' card-' + cardStyle + '"');
 
   const fontPair = (fonts as any)[se.fontPair || 'modern-sans'] || (fonts as any)['modern-sans'];
   const rad = ({ sharp: { sm: '2px', md: '4px', lg: '6px', full: '8px' }, rounded: { sm: '8px', md: '12px', lg: '16px', full: '9999px' }, pill: { sm: '24px', md: '32px', lg: '40px', full: '9999px' } } as any)[se.roundness || 'rounded'] || { sm: '8px', md: '12px', lg: '16px', full: '9999px' };
@@ -874,9 +1814,6 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
   const btnRadius = ({ square: '2px', rounded: '12px', pill: '9999px' } as any)[se.buttonStyle || 'rounded'] || '12px';
   const headerPos = se.headerFixed !== false ? 'fixed' : 'relative';
   const hasHeaderPad = headerPos === 'fixed' ? 'padding-top: 80px;' : '';
-  if (hasHeaderPad) {
-    html = html.replace('</head>', '<style>body.website-page { ' + hasHeaderPad + ' }</style></head>');
-  }
 
   css = css.replace(/{{FONT_HEADING}}/g, fontPair.heading);
   css = css.replace(/{{FONT_BODY}}/g, fontPair.body);
@@ -930,10 +1867,9 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
     css += '\n.reveal { opacity: 1 !important; transform: none !important; }';
   }
 
-  // Inject teacher ID and chat widget script
+  // Chat widget markup injected into every page before </body>
   const siteUrl = `/s/${teacherId}`;
-  html = html.replace(/{{TEACHER_ID}}/g, String(teacherId));
-  html = html.replace('</body>', `
+  const chatWidgetHtml = `
 <div class="chat-widget" id="chatWidget" data-teacher-id="${teacherId}" data-site-url="${siteUrl}">
   <button class="chat-widget__toggle" id="chatToggle" aria-label="Chat">
     <svg class="chat-widget__icon-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -954,58 +1890,13 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
     </div>
     <div class="chat-widget__input-area">
       <input class="chat-widget__input" id="chatInput" placeholder="Type your question..." />
-      <button class="chat-widget__call-btn chat-widget__call-btn--audio" id="audioCallBtn" title="Audio call with AI" aria-label="Audio call">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-      </button>
-      <button class="chat-widget__call-btn chat-widget__call-btn--video" id="videoCallBtn" title="Video call with AI" aria-label="Video call">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-      </button>
       <button class="chat-widget__send" id="chatSendBtn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
       </button>
     </div>
   </div>
 </div>
-
-<!-- Call overlay -->
-<div class="chat-call" id="chatCallOverlay">
-  <div class="chat-call__backdrop" id="callBackdrop"></div>
-  <div class="chat-call__container" id="callContainer">
-    <div class="chat-call__video-area" id="callVideoArea">
-      <video class="chat-call__user-video" id="userVideo" autoplay muted playsinline></video>
-      <div class="chat-call__ai-avatar" id="aiAvatar">
-        <div class="chat-call__avatar-ring chat-call__avatar-ring--1"></div>
-        <div class="chat-call__avatar-ring chat-call__avatar-ring--2"></div>
-        <div class="chat-call__avatar-ring chat-call__avatar-ring--3"></div>
-        <div class="chat-call__avatar-face">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-        </div>
-        <div class="chat-call__avatar-label">AI Assistant</div>
-      </div>
-    </div>
-    <div class="chat-call__status">
-      <div class="chat-call__status-dot" id="callStatusDot"></div>
-      <span class="chat-call__status-text" id="callStatusText">Connecting...</span>
-      <span class="chat-call__timer" id="callTimer">00:00</span>
-    </div>
-    <div class="chat-call__transcript" id="callTranscript">
-      <div class="chat-call__transcript-msg chat-call__transcript-msg--ai" id="aiTranscript">Speak to ask anything about this teacher.</div>
-      <div class="chat-call__transcript-msg chat-call__transcript-msg--user" id="userTranscript"></div>
-    </div>
-    <div class="chat-call__controls">
-      <button class="chat-call__ctrl chat-call__ctrl--mute" id="callMuteBtn" title="Mute">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-      </button>
-      <button class="chat-call__ctrl chat-call__ctrl--end" id="callEndBtn" title="End call">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-      </button>
-      <button class="chat-call__ctrl chat-call__ctrl--video" id="callVideoToggleBtn" title="Toggle video">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-      </button>
-    </div>
-  </div>
-</div>
-</body>`);
+`;
 
   // Add chat widget CSS
   css += `
@@ -1097,17 +1988,6 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
 .chat-widget__input { flex: 1; padding: 10px 14px; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #fff; font-size: 0.85rem; outline: none; }
 .chat-widget__input::placeholder { color: #64748b; }
 .chat-widget__input:focus { border-color: var(--color-primary); }
-.chat-widget__call-btn {
-  width: 40px; height: 40px; border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: #94a3b8; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; transition: all 0.15s;
-}
-.chat-widget__call-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
-.chat-widget__call-btn--audio:hover { border-color: #34d399; color: #34d399; }
-.chat-widget__call-btn--video:hover { border-color: #818cf8; color: #818cf8; }
 
 .chat-widget__send {
   width: 40px; height: 40px;
@@ -1120,163 +2000,61 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
 .chat-widget__send:disabled { opacity: 0.4; cursor: not-allowed; }
 .chat-widget__admin-badge { font-size: 0.7rem; padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: 10px; font-weight: 600; }
 
-/* ===== CHAT CALL OVERLAY ===== */
-.chat-call {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 99999; display: none;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-.chat-call--active { display: block; }
-.chat-call__backdrop {
-  position: absolute; inset: 0;
-  background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(12px);
-}
-.chat-call__container {
-  position: relative; z-index: 2;
-  max-width: 520px; margin: 0 auto;
-  display: flex; flex-direction: column;
-  height: 100vh; padding: 24px 20px;
-}
-.chat-call__video-area {
-  flex: 1; position: relative;
-  border-radius: 20px; overflow: hidden;
-  background: #0a0e1a;
-  min-height: 300px;
-  display: flex; align-items: center; justify-content: center;
-}
-.chat-call__user-video {
-  position: absolute; top: 16px; right: 16px;
-  width: 140px; height: 105px;
-  border-radius: 12px; object-fit: cover;
-  border: 2px solid rgba(255,255,255,0.15);
-  background: #1e293b;
-  display: none;
-}
-.chat-call__user-video--active { display: block; }
-.chat-call__ai-avatar {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 16px;
-  position: relative;
-}
-.chat-call__avatar-ring {
-  position: absolute; border-radius: 50%;
-  border: 2px solid transparent;
-  animation: avatarPulse 2.5s ease-in-out infinite;
-}
-.chat-call__avatar-ring--1 {
-  width: 180px; height: 180px;
-  border-color: var(--color-primary);
-  opacity: 0.3;
-}
-.chat-call__avatar-ring--2 {
-  width: 140px; height: 140px;
-  border-color: var(--color-accent);
-  opacity: 0.5;
-  animation-delay: 0.5s;
-}
-.chat-call__avatar-ring--3 {
-  width: 100px; height: 100px;
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb,99,102,241),0.15), rgba(var(--color-accent-rgb,168,85,247),0.15));
-  border: none;
-  animation-delay: 1s;
-}
-.chat-call__avatar-face {
-  position: relative; z-index: 1;
-  width: 80px; height: 80px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  display: flex; align-items: center; justify-content: center;
-  color: #fff;
-  box-shadow: 0 0 40px rgba(99,102,241,0.3);
-}
-@keyframes avatarPulse {
-  0%, 100% { transform: scale(1); opacity: 0.4; }
-  50% { transform: scale(1.08); opacity: 0.8; }
-}
-.chat-call__avatar-face.listening {
-  animation: avatarListening 1.5s ease-in-out infinite;
-}
-@keyframes avatarListening {
-  0%, 100% { box-shadow: 0 0 40px rgba(99,102,241,0.3); }
-  50% { box-shadow: 0 0 80px rgba(99,102,241,0.6), 0 0 120px rgba(168,85,247,0.3); }
-}
-.chat-call__avatar-label { font-size: 0.85rem; color: #94a3b8; font-weight: 500; position: relative; z-index: 1; }
-.chat-call__status {
-  display: flex; align-items: center; justify-content: center;
-  gap: 10px; padding: 16px 0 12px;
-}
-.chat-call__status-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: #34d399;
-  animation: dotPulse 1.5s ease-in-out infinite;
-}
-@keyframes dotPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-.chat-call__status-dot--inactive { background: #ef4444; animation: none; }
-.chat-call__status-text { font-size: 0.85rem; color: #94a3b8; font-weight: 500; }
-.chat-call__timer { font-size: 0.8rem; color: #64748b; font-weight: 600; letter-spacing: 0.5px; }
-.chat-call__transcript {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px; padding: 14px 18px;
-  min-height: 60px; max-height: 120px;
-  overflow-y: auto; margin-bottom: 16px;
-}
-.chat-call__transcript-msg {
-  font-size: 0.85rem; line-height: 1.5;
-  animation: msgIn 0.2s ease;
-}
-.chat-call__transcript-msg--user { color: #e2e8f0; font-weight: 600; margin-bottom: 4px; }
-.chat-call__transcript-msg--user::before { content: 'You: '; color: var(--color-primary); font-weight: 700; }
-.chat-call__transcript-msg--ai { color: #94a3b8; }
-.chat-call__transcript-msg--ai::before { content: 'AI: '; color: var(--color-accent); font-weight: 700; }
-.chat-call__controls {
-  display: flex; align-items: center;
-  justify-content: center; gap: 24px;
-  padding: 8px 0 16px;
-}
-.chat-call__ctrl {
-  width: 52px; height: 52px; border-radius: 50%;
-  border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-}
-.chat-call__ctrl--end {
-  background: #ef4444; color: #fff;
-  width: 60px; height: 60px;
-  box-shadow: 0 4px 20px rgba(239,68,68,0.4);
-}
-.chat-call__ctrl--end:hover { background: #dc2626; transform: scale(1.05); }
-.chat-call__ctrl--mute, .chat-call__ctrl--video {
-  background: rgba(255,255,255,0.08); color: #fff;
-}
-.chat-call__ctrl--mute:hover, .chat-call__ctrl--video:hover { background: rgba(255,255,255,0.15); }
-.chat-call__ctrl--mute.chat-call__ctrl--off { background: rgba(239,68,68,0.2); color: #ef4444; }
-.chat-call__ctrl--video.chat-call__ctrl--off { background: rgba(239,68,68,0.2); color: #ef4444; }
-
 @media (max-width: 480px) {
   .chat-widget__panel { width: calc(100vw - 32px); right: -8px; bottom: 64px; }
-  .chat-call__container { padding: 16px 12px; }
-  .chat-call__video-area { min-height: 240px; border-radius: 14px; }
-  .chat-call__user-video { width: 100px; height: 75px; }
-  .chat-call__avatar-ring--1 { width: 140px; height: 140px; }
-  .chat-call__avatar-ring--2 { width: 110px; height: 110px; }
-  .chat-call__avatar-ring--3 { width: 80px; height: 80px; }
-  .chat-call__avatar-face { width: 64px; height: 64px; }
-  .chat-call__avatar-face svg { width: 32px; height: 32px; }
 }`;
-
   const distDirCss = path.join(distDir, 'css');
   const distDirJs = path.join(distDir, 'js');
   fs.mkdirSync(distDir, { recursive: true });
   fs.mkdirSync(distDirCss, { recursive: true });
   fs.mkdirSync(distDirJs, { recursive: true });
 
-  fs.writeFileSync(path.join(distDir, 'index.html'), html);
+  // ── Write one HTML file per page ──
+  // Ensure the home page always exists (hero + overview cards).
+  if (!pageSections['index.html']) pageSections['index.html'] = [];
+  const pageFiles = Object.keys(pageSections).sort(function (a, b) {
+    if (a === 'index.html') return -1;
+    if (b === 'index.html') return 1;
+    return a.localeCompare(b);
+  });
+  // Nav order first, then any leftovers (keeps navbar order == file order)
+  const orderedPageFiles = navEntries.map(function (n) { return n.file; })
+    .filter(function (f, i, arr) { return arr.indexOf(f) === i && pageSections[f]; });
+  pageFiles.forEach(function (f) {
+    if (orderedPageFiles.indexOf(f) === -1) orderedPageFiles.push(f);
+  });
+  orderedPageFiles.forEach(function (pageFile) {
+    let pageHtml = buildPageHtml(pageFile);
+    if (blogPosts.length > 0 && (pageFile === 'blog.html' || pageFile.startsWith('post-'))) {
+      pageHtml = pageHtml.replace('</head>', '<link rel="alternate" type="application/rss+xml" title="Blog feed" href="feed.xml" /></head>');
+    }
+    pageHtml = pageHtml.replace('</body>', chatWidgetHtml + '\n</body>');
+    fs.writeFileSync(path.join(distDir, pageFile), pageHtml);
+  });
+
+  // ── Per-site sitemap.xml + blog RSS feed ──
+  try {
+    const pageBase = siteBase ? siteBase + '/s/' + teacherId + '/' : '';
+    const xmlEsc = (s: string) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const sitemapUrls = orderedPageFiles.map(f => `  <url><loc>${xmlEsc(pageBase + f)}</loc></url>`).join('\n');
+    fs.writeFileSync(path.join(distDir, 'sitemap.xml'),
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls}\n</urlset>`);
+    if (blogPosts.length > 0) {
+      const items = blogPosts.map(function (p: any) {
+        const link = pageBase + postFileName(p.slug);
+        let pubDate = '';
+        try { pubDate = new Date(p.created_at).toUTCString(); } catch {}
+        return `  <item>\n    <title>${xmlEsc(p.title || 'Untitled')}</title>\n    <link>${xmlEsc(link)}</link>\n    <guid>${xmlEsc(link)}</guid>`
+          + (pubDate ? `\n    <pubDate>${pubDate}</pubDate>` : '')
+          + `\n    <description>${xmlEsc(String(p.body || '').replace(/\s+/g, ' ').slice(0, 300))}</description>\n  </item>`;
+      }).join('\n');
+      fs.writeFileSync(path.join(distDir, 'feed.xml'),
+        `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0">\n<channel>\n  <title>${xmlEsc(metaTitleBase || 'Blog')}</title>\n  <link>${xmlEsc(pageBase + 'blog.html')}</link>\n  <description>${xmlEsc(metaDesc)}</description>\n${items}\n</channel>\n</rss>`);
+    }
+  } catch {}
   fs.writeFileSync(path.join(distDirCss, 'style.css'), css);
 
-  // Append chat widget JS to script.js
-  const signalUrl = process.env.NEXT_PUBLIC_SIGNALING_URL || 'ws://127.0.0.1:8765/ws/signal';
+  // Append chat widget JS to script.js (text messaging only)
   const chatJs = `
 (function() {
   'use strict';
@@ -1294,38 +2072,12 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
   var closeBtn = document.getElementById('chatCloseBtn');
   var modeBtn = document.getElementById('chatModeBtn');
   var widget = document.getElementById('chatWidget');
-  var audioCallBtn = document.getElementById('audioCallBtn');
-  var videoCallBtn = document.getElementById('videoCallBtn');
-  var callOverlay = document.getElementById('chatCallOverlay');
-  var callEndBtn = document.getElementById('callEndBtn');
-  var callMuteBtn = document.getElementById('callMuteBtn');
-  var callVideoToggleBtn = document.getElementById('callVideoToggleBtn');
-  var userVideo = document.getElementById('userVideo');
-  var aiAvatar = document.getElementById('aiAvatar');
-  var aiTranscript = document.getElementById('aiTranscript');
-  var userTranscript = document.getElementById('userTranscript');
-  var callStatusText = document.getElementById('callStatusText');
-  var callTimer = document.getElementById('callTimer');
-  var callStatusDot = document.getElementById('callStatusDot');
 
   // ════════════════════════════════════════════════
   //  State
   // ════════════════════════════════════════════════
   var isAdmin = false;
-  var signalTeacherToken = null;
   var chatOpen = false;
-  var inCall = false;
-  var callStartTime = null;
-  var callTimerInterval = null;
-  var isMuted = false;
-  var isVideoOn = false;
-  var isVideoCall = false;
-  var mediaStream = null;
-  var signalingWs = null;
-  var peerConn = null;
-  var currentRoom = null;
-
-  var SIGNAL_URL = '{{SIGNAL_URL}}';
 
   if (!toggle) return;
 
@@ -1339,24 +2091,12 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
         isAdmin = true;
         if (modeBtn) {
           modeBtn.classList.add('chat-widget__mode-btn--active');
-          modeBtn.title = 'Online — receiving calls';
+          modeBtn.title = 'Online';
           var badge = document.createElement('span');
           badge.className = 'chat-widget__admin-badge';
           badge.textContent = 'Online';
           document.querySelector('.chat-widget__title')?.appendChild(badge);
         }
-        // Teacher joins the signaling server only with a valid server-issued token
-        fetch('/api/signaling-token', { credentials: 'include' })
-          .then(function(r) { return r.json(); })
-          .then(function(d) {
-            if (d.token) {
-              signalTeacherToken = d.token;
-              connectSignaling('teacher');
-            } else {
-              addMsg('Call service is not configured. Text messaging still works.', 'bot');
-            }
-          })
-          .catch(function() {});
       }
     })
     .catch(function() {});
@@ -1382,83 +2122,31 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
   }
 
   // ════════════════════════════════════════════════
-  //  Signaling Server — WebSocket
-  // ════════════════════════════════════════════════
-  function connectSignaling(role) {
-    try {
-      signalingWs = new WebSocket(SIGNAL_URL);
-    } catch(e) { return; }
-
-    signalingWs.onopen = function() {
-      var join = { type: 'join', role: role };
-      if (role === 'teacher') {
-        if (!signalTeacherToken) { signalingWs.close(); return; }
-        join.token = signalTeacherToken;
-      }
-      signalingWs.send(JSON.stringify(join));
-    };
-
-    signalingWs.onmessage = function(event) {
-      try {
-        var msg = JSON.parse(event.data);
-        handleSignalingMessage(msg);
-      } catch(e) {}
-    };
-
-    signalingWs.onclose = function() {
-      // Reconnect after a delay if admin
-      if (isAdmin) setTimeout(function() { connectSignaling('teacher'); }, 3000);
-    };
-  }
-
-  function handleSignalingMessage(msg) {
-    if (msg.type === 'joined') {
-      currentRoom = msg.room;
-      if (isAdmin) {
-        // Teacher is now waiting in a room
-        addMsg('You are online. Visitors can call you now.', 'bot');
-      }
-    }
-    else if (msg.type === 'incoming_call') {
-      // Teacher receives notification of a visitor wanting to call
-      addMsg('A visitor wants to call you! Open the call panel to connect.', 'bot');
-      // Auto-answer for now (could add accept/decline UI)
-      startWebRTCCall(false);
-    }
-    else if (msg.type === 'visitor_ready') {
-      // Visitor joined the teacher's room — teacher initiates call
-      startWebRTCCall(false);
-    }
-    else if (msg.type === 'offer') {
-      if (peerConn) peerConn.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: msg.sdp }));
-      peerConn.createAnswer().then(function(answer) {
-        peerConn.setLocalDescription(answer);
-        if (signalingWs) signalingWs.send(JSON.stringify({ type: 'answer', sdp: answer.sdp, room: currentRoom }));
-      });
-    }
-    else if (msg.type === 'answer') {
-      if (peerConn) peerConn.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: msg.sdp }));
-    }
-    else if (msg.type === 'ice_candidate') {
-      if (peerConn && msg.candidate) {
-        peerConn.addIceCandidate(new RTCIceCandidate(msg.candidate));
-      }
-    }
-    else if (msg.type === 'peer_disconnected') {
-      endCall();
-      addMsg('The other person left the call.', 'bot');
-    }
-    else if (msg.type === 'text_message') {
-      addMsg(msg.text, 'bot');
-      streaming = false;
-      sendBtn.disabled = false;
-    }
-  }
-
-  // ════════════════════════════════════════════════
-  //  Text Chat (direct messaging, no AI)
+  //  Text Chat (AI answer first, falls back to messaging)
   // ════════════════════════════════════════════════
   var streaming = false;
+  var AI_REPLIES = ${data.meta?.aiReplies === false ? 'false' : 'true'};
+
+  function storeMessage(text, done) {
+    fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacherId: teacherId, text: text, from: 'visitor' }),
+    })
+    .then(function() {
+      addMsg('Your message has been sent. The teacher will see it when they log in.', 'bot');
+      if (done) done();
+    })
+    .catch(function() {
+      addMsg('Failed to send. Please try again.', 'bot');
+      if (done) done();
+    });
+  }
+
+  function finishSend() {
+    streaming = false;
+    sendBtn.disabled = false;
+  }
 
   function doSend() {
     var text = input.value.trim();
@@ -1468,31 +2156,41 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
     streaming = true;
     sendBtn.disabled = true;
 
-    // If connected via signaling, send directly to teacher
-    if (signalingWs && signalingWs.readyState === WebSocket.OPEN && currentRoom) {
-      signalingWs.send(JSON.stringify({ type: 'text_message', text: text, room: currentRoom }));
-      // Expect teacher to reply (no AI auto-reply)
-      addMsg('Message sent. Waiting for reply...', 'bot');
-      streaming = false;
-      sendBtn.disabled = false;
-    } else {
-      // Teacher offline — store message
-      fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teacherId: teacherId, text: text, from: 'visitor' }),
-      })
-      .then(function() {
-        addMsg('Your message has been sent. The teacher will see it when they log in.', 'bot');
-        streaming = false;
-        sendBtn.disabled = false;
-      })
-      .catch(function() {
-        addMsg('Failed to send. Please try again.', 'bot');
-        streaming = false;
-        sendBtn.disabled = false;
-      });
+    // Try the AI first — it answers from the teacher's own content.
+    // If it can't (or is off), store the message for the teacher instead.
+    if (!AI_REPLIES) {
+      storeMessage(text, finishSend);
+      return;
     }
+    fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacherId: teacherId, question: text }),
+    })
+    .then(function(r) { return r.json().catch(function() { return {}; }); })
+    .then(function(a) {
+      if (a && a.ok && a.answer) {
+        addMsg(a.answer, 'bot');
+        var row = document.createElement('div');
+        row.className = 'chat-widget__msg chat-widget__msg--bot';
+        var btn = document.createElement('button');
+        btn.textContent = 'Still send this to the teacher →';
+        btn.style.cssText = 'margin-top:6px;font-size:.75rem;font-weight:700;color:#a5b4fc;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.4);border-radius:8px;padding:6px 10px;cursor:pointer;';
+        btn.addEventListener('click', function() {
+          btn.disabled = true;
+          storeMessage(text, function() {});
+        });
+        row.appendChild(btn);
+        msgsEl.appendChild(row);
+        msgsEl.scrollTop = msgsEl.scrollHeight;
+        finishSend();
+      } else {
+        storeMessage(text, finishSend);
+      }
+    })
+    .catch(function() {
+      storeMessage(text, finishSend);
+    });
   }
 
   if (sendBtn) sendBtn.addEventListener('click', doSend);
@@ -1503,199 +2201,260 @@ export async function runBuild(data: any, teacherId: number): Promise<string> {
   }
 
   // ════════════════════════════════════════════════
-  //  Audio / Video Call — WebRTC Peer-to-Peer
+  //  Booking forms (office-hours widgets)
   // ════════════════════════════════════════════════
-  var ICE_SERVERS = { iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ]};
-
-  function formatTime(secs) {
-    var m = Math.floor(secs / 60);
-    var s = Math.floor(secs % 60);
-    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-  }
-
-  function setCallStatus(text, active) {
-    callStatusText.textContent = text;
-    callStatusDot.className = 'chat-call__status-dot' + (active ? '' : ' chat-call__status-dot--inactive');
-    if (!active) callStatusDot.style.animation = 'none';
-    else callStatusDot.style.animation = '';
-  }
-
-  function updateTranscript(aiText, userText) {
-    if (aiText !== undefined) aiTranscript.textContent = aiText;
-    if (userText !== undefined) userTranscript.textContent = userText;
-  }
-
-  function startWebRTCCall(video) {
-    if (!signalingWs || signalingWs.readyState !== WebSocket.OPEN) {
-      setCallStatus('Signaling server unavailable', false);
-      updateTranscript('', 'Could not connect to signaling server. Make sure the Python server is running.');
-      return;
+  document.querySelectorAll('form[data-booking-form]').forEach(function(form) {
+    var f = form as HTMLFormElement;
+    var tid = f.getAttribute('data-teacher-id') || teacherId;
+    var dateInput = f.querySelector('input[name="date"]') as HTMLInputElement | null;
+    var timeSel = f.querySelector('select[name="time"]') as HTMLSelectElement | null;
+    var nameInput = f.querySelector('input[name="name"]') as HTMLInputElement | null;
+    var emailInput = f.querySelector('input[name="email"]') as HTMLInputElement | null;
+    var noteInput = f.querySelector('textarea[name="note"]') as HTMLTextAreaElement | null;
+    var msg = f.querySelector('[data-booking-msg]') as HTMLElement | null;
+    var submitBtn = f.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (!dateInput || !timeSel) return;
+    var avail: { slots: any[]; taken: any[] } | null = null;
+    function say(t: string, ok?: boolean) {
+      if (msg) { msg.textContent = t; msg.style.color = ok ? '#34d399' : '#f87171'; }
     }
-
-    peerConn = new RTCPeerConnection(ICE_SERVERS);
-
-    peerConn.onicecandidate = function(event) {
-      if (event.candidate && signalingWs) {
-        signalingWs.send(JSON.stringify({ type: 'ice_candidate', candidate: event.candidate, room: currentRoom }));
-      }
-    };
-
-    peerConn.ontrack = function(event) {
-      // Remote stream — show it
-      if (event.streams && event.streams[0]) {
-        var remoteAudio = document.createElement('audio');
-        remoteAudio.srcObject = event.streams[0];
-        remoteAudio.autoplay = true;
-        remoteAudio.style.display = 'none';
-        document.body.appendChild(remoteAudio);
-
-        if (event.track.kind === 'video') {
-          // Show remote video in the main area
-          var remoteVideo = document.createElement('video');
-          remoteVideo.srcObject = event.streams[0];
-          remoteVideo.autoplay = true;
-          remoteVideo.playsInline = true;
-          remoteVideo.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:20px;';
-          var videoArea = document.getElementById('callVideoArea');
-          if (videoArea) {
-            videoArea.innerHTML = '';
-            videoArea.appendChild(remoteVideo);
-            // Put user video back on top
-            userVideo.classList.add('chat-call__user-video--active');
-            videoArea.appendChild(userVideo);
-          }
+    try { dateInput.min = new Date().toISOString().slice(0, 10); } catch (e) {}
+    fetch('/api/bookings?teacherId=' + encodeURIComponent(tid))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        avail = d;
+        if (!d.slots || !d.slots.length) {
+          say('Bookings are not open right now — send a message instead.');
+          if (submitBtn) submitBtn.disabled = true;
         }
-      }
-    };
-
-    peerConn.oniceconnectionstatechange = function() {
-      if (peerConn.iceConnectionState === 'disconnected' || peerConn.iceConnectionState === 'failed') {
-        endCall();
-        addMsg('Call disconnected.', 'bot');
-      }
-    };
-
-    // Add local tracks
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(function(track) {
-        peerConn.addTrack(track, mediaStream);
+      })
+      .catch(function() {});
+    function freeTimes(dateStr: string): string[] {
+      if (!avail || !dateStr) return [];
+      var wd = new Date(dateStr + 'T12:00:00Z').getUTCDay();
+      var taken: Record<string, boolean> = {};
+      (avail.taken || []).forEach(function(b: any) { if (b.date === dateStr) taken[b.time] = true; });
+      var out: string[] = [];
+      (avail.slots || []).forEach(function(s: any) {
+        if (s.weekday !== wd) return;
+        function mins(x: string) { var p = x.split(':'); return (+p[0]) * 60 + (+p[1]); }
+        var cur = mins(s.start), end = mins(s.end);
+        while (cur + 30 <= end) {
+          var label = String(Math.floor(cur / 60)).padStart(2, '0') + ':' + String(cur % 60).padStart(2, '0');
+          if (!taken[label]) out.push(label);
+          cur += 30;
+        }
       });
+      return out.sort();
     }
-
-    // If visitor, create offer
-    if (!isAdmin) {
-      peerConn.createOffer().then(function(offer) {
-        peerConn.setLocalDescription(offer);
-        if (signalingWs) signalingWs.send(JSON.stringify({ type: 'offer', sdp: offer.sdp, room: currentRoom }));
+    dateInput.addEventListener('change', function() {
+      timeSel!.innerHTML = '<option value="">Time…</option>';
+      var times = freeTimes(dateInput!.value);
+      times.forEach(function(t) {
+        var o = document.createElement('option');
+        o.value = t; o.textContent = t;
+        timeSel!.appendChild(o);
       });
-    }
+      if (!times.length) say('No free times that day — try another date.');
+      else if (msg) msg.textContent = '';
+    });
+    f.addEventListener('submit', function(ev) {
+      ev.preventDefault();
+      if (submitBtn) submitBtn.disabled = true;
+      say('Sending request…');
+      fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacherId: tid,
+          name: nameInput ? nameInput.value : '',
+          email: emailInput ? emailInput.value : '',
+          date: dateInput!.value,
+          time: timeSel!.value,
+          note: noteInput ? noteInput.value : '',
+        }),
+      })
+        .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+        .then(function(res) {
+          if (res.ok) { say('Request sent! The teacher will confirm by email.', true); f.reset(); }
+          else { say((res.j && res.j.error) || 'Booking failed.'); }
+          if (submitBtn) submitBtn.disabled = false;
+        })
+        .catch(function() { say('Network error — try again.'); if (submitBtn) submitBtn.disabled = false; });
+    });
+  });
 
-    callStartTime = Date.now();
-    callTimerInterval = setInterval(function() {
-      var secs = (Date.now() - callStartTime) / 1000;
-      callTimer.textContent = formatTime(secs);
-    }, 500);
-    setCallStatus('Connected', true);
-    updateTranscript('Call connected — talk directly with each other.', '');
-  }
+  // ════════════════════════════════════════════════
+  //  Newsletter subscribe forms
+  // ════════════════════════════════════════════════
+  document.querySelectorAll('form[data-newsletter-form]').forEach(function(form) {
+    var f = form as HTMLFormElement;
+    var tid = f.getAttribute('data-teacher-id') || teacherId;
+    var emailInput = f.querySelector('input[name="email"]') as HTMLInputElement | null;
+    var msg = f.querySelector('[data-newsletter-msg]') as HTMLElement | null;
+    var btn = f.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (!emailInput) return;
+    f.addEventListener('submit', function(ev) {
+      ev.preventDefault();
+      if (btn) btn.disabled = true;
+      if (msg) { msg.textContent = 'Subscribing…'; msg.style.color = '#94a3b8'; }
+      fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherId: tid, email: emailInput!.value }),
+      })
+        .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+        .then(function(res) {
+          if (res.ok) {
+            if (msg) { msg.textContent = res.j.duplicate ? 'You are already subscribed. 🎉' : 'Subscribed! Welcome aboard. 🎉'; msg.style.color = '#34d399'; }
+            f.reset();
+          } else if (msg) {
+            msg.textContent = (res.j && res.j.error) || 'Subscribe failed.';
+            msg.style.color = '#f87171';
+          }
+          if (btn) btn.disabled = false;
+        })
+        .catch(function() {
+          if (msg) { msg.textContent = 'Network error — try again.'; msg.style.color = '#f87171'; }
+          if (btn) btn.disabled = false;
+        });
+    });
+  });
 
-  function startCall(video) {
-    inCall = true;
-    isVideoCall = video;
-    isMuted = false;
-    isVideoOn = video;
-    callOverlay.className = 'chat-call chat-call--active';
-    widget.classList.remove('chat-widget--open');
-    chatOpen = false;
-    updateTranscript('Connecting...', '');
-    setCallStatus('Connecting...', true);
-    aiAvatar.style.display = 'flex';
+  // ════════════════════════════════════════════════
+  //  Blog comment forms (held for moderation)
+  // ════════════════════════════════════════════════
+  document.querySelectorAll('form[data-comment-form]').forEach(function(form) {
+    var f = form as HTMLFormElement;
+    var tid = f.getAttribute('data-teacher-id') || teacherId;
+    var slug = f.getAttribute('data-slug') || '';
+    var nameInput = f.querySelector('input[name="name"]') as HTMLInputElement | null;
+    var textInput = f.querySelector('textarea[name="text"]') as HTMLTextAreaElement | null;
+    var msg = f.querySelector('[data-comment-msg]') as HTMLElement | null;
+    var btn = f.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (!nameInput || !textInput) return;
+    f.addEventListener('submit', function(ev) {
+      ev.preventDefault();
+      if (btn) btn.disabled = true;
+      if (msg) { msg.textContent = 'Posting…'; msg.style.color = '#94a3b8'; }
+      fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherId: tid, slug: slug, name: nameInput!.value, text: textInput!.value }),
+      })
+        .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+        .then(function(res) {
+          if (res.ok) {
+            if (msg) { msg.textContent = 'Thanks! Your comment is awaiting moderation.'; msg.style.color = '#34d399'; }
+            f.reset();
+          } else if (msg) {
+            msg.textContent = (res.j && res.j.error) || 'Comment failed.';
+            msg.style.color = '#f87171';
+          }
+          if (btn) btn.disabled = false;
+        })
+        .catch(function() {
+          if (msg) { msg.textContent = 'Network error — try again.'; msg.style.color = '#f87171'; }
+          if (btn) btn.disabled = false;
+        });
+    });
+  });
 
-    if (!signalingWs || signalingWs.readyState !== WebSocket.OPEN) {
-      if (isAdmin) {
-        // Teacher starts signaling
-        connectSignaling('teacher');
-        setTimeout(function() { startCall(video); }, 1000);
+  // ════════════════════════════════════════════════
+  //  Review (testimonial submission) forms
+  // ════════════════════════════════════════════════
+  document.querySelectorAll('form[data-review-form]').forEach(function(form) {
+    var f = form as HTMLFormElement;
+    var tid = f.getAttribute('data-teacher-id') || teacherId;
+    var nameInput = f.querySelector('input[name="name"]') as HTMLInputElement | null;
+    var ctxInput = f.querySelector('input[name="context"]') as HTMLInputElement | null;
+    var textInput = f.querySelector('textarea[name="text"]') as HTMLTextAreaElement | null;
+    var msg = f.querySelector('[data-review-msg]') as HTMLElement | null;
+    var btn = f.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (!nameInput || !textInput) return;
+    f.addEventListener('submit', function(ev) {
+      ev.preventDefault();
+      if (btn) btn.disabled = true;
+      if (msg) { msg.textContent = 'Sending…'; msg.style.color = '#94a3b8'; }
+      fetch('/api/testimonials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teacherId: tid, name: nameInput!.value, context: ctxInput ? ctxInput.value : '', text: textInput!.value }),
+      })
+        .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+        .then(function(res) {
+          if (res.ok) {
+            if (msg) { msg.textContent = 'Thank you! Your review is awaiting moderation. 💛'; msg.style.color = '#34d399'; }
+            f.reset();
+          } else if (msg) {
+            msg.textContent = (res.j && res.j.error) || 'Submit failed.';
+            msg.style.color = '#f87171';
+          }
+          if (btn) btn.disabled = false;
+        })
+        .catch(function() {
+          if (msg) { msg.textContent = 'Network error — try again.'; msg.style.color = '#f87171'; }
+          if (btn) btn.disabled = false;
+        });
+    });
+  });
+
+  // ════════════════════════════════════════════════
+  //  Countdown timers
+  // ════════════════════════════════════════════════
+  document.querySelectorAll('[data-countdown]').forEach(function(el) {
+    var target = new Date(el.getAttribute('data-countdown') || '').getTime();
+    if (!Number.isFinite(target)) return;
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function tick() {
+      var diff = target - Date.now();
+      var get = function(k) { return el.querySelector('[data-cd="' + k + '"]'); };
+      if (diff <= 0) {
+        var d0 = get('d'), h0 = get('h'), m0 = get('m'), s0 = get('s');
+        if (d0) d0.textContent = '0'; if (h0) h0.textContent = '00';
+        if (m0) m0.textContent = '00'; if (s0) s0.textContent = '00';
         return;
       }
-      setCallStatus('Teacher is offline', false);
-      updateTranscript('', 'The teacher is not available right now. Send them a message instead.');
-      inCall = false;
-      callOverlay.className = 'chat-call';
-      return;
+      var d = Math.floor(diff / 86400000);
+      var h = Math.floor(diff / 3600000) % 24;
+      var m = Math.floor(diff / 60000) % 60;
+      var s = Math.floor(diff / 1000) % 60;
+      var dd = get('d'), hh = get('h'), mm = get('m'), ss = get('s');
+      if (dd) dd.textContent = String(d);
+      if (hh) hh.textContent = pad(h);
+      if (mm) mm.textContent = pad(m);
+      if (ss) ss.textContent = pad(s);
     }
+    tick();
+    setInterval(tick, 1000);
+  });
 
-    var constraints = video ? { video: true, audio: true } : { audio: true };
-    navigator.mediaDevices.getUserMedia(constraints)
-      .then(function(stream) {
-        mediaStream = stream;
-        if (video) {
-          userVideo.srcObject = stream;
-          userVideo.classList.add('chat-call__user-video--active');
-          isVideoOn = true;
-        }
-        startWebRTCCall(video);
-      })
-      .catch(function() {
-        setCallStatus('Microphone access denied', false);
-        updateTranscript('', 'Please allow microphone access to call.');
-      });
-  }
-
-  function endCall() {
-    inCall = false;
-    isVideoCall = false;
-    callOverlay.className = 'chat-call';
-    if (callTimerInterval) { clearInterval(callTimerInterval); callTimerInterval = null; }
-    if (peerConn) { peerConn.close(); peerConn = null; }
-    if (signalingWs && currentRoom) {
-      try { signalingWs.send(JSON.stringify({ type: 'end_call', room: currentRoom })); } catch(e) {}
+  // ════════════════════════════════════════════════
+  //  Analytics beacon (privacy-friendly: page path only)
+  // ════════════════════════════════════════════════
+  try {
+    var beaconPath = (location.pathname.split('/').pop() || 'index.html').slice(0, 200);
+    var beaconBody = JSON.stringify({ teacherId: teacherId, path: beaconPath });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/views', beaconBody);
+    } else {
+      fetch('/api/views', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: beaconBody, keepalive: true } as any);
     }
-    if (mediaStream) { mediaStream.getTracks().forEach(function(t) { t.stop(); }); mediaStream = null; }
-    userVideo.srcObject = null;
-    userVideo.classList.remove('chat-call__user-video--active');
-    isVideoOn = false;
-    // Restore avatar view
-    var videoArea = document.getElementById('callVideoArea');
-    if (videoArea) {
-      videoArea.innerHTML = '';
-      videoArea.appendChild(aiAvatar);
-      videoArea.appendChild(userVideo);
-    }
-    aiAvatar.style.display = 'flex';
-    // Re-connect signaling if teacher
-    if (isAdmin) {
-      connectSignaling('teacher');
-    }
-  }
+  } catch (e) {}
 
-  function toggleMute() {
-    isMuted = !isMuted;
-    if (mediaStream) mediaStream.getAudioTracks().forEach(function(t) { t.enabled = !isMuted; });
-    callMuteBtn.className = 'chat-call__ctrl chat-call__ctrl--mute' + (isMuted ? ' chat-call__ctrl--off' : '');
-  }
-
-  function toggleVideo() {
-    if (!isVideoCall) return;
-    isVideoOn = !isVideoOn;
-    if (mediaStream) mediaStream.getVideoTracks().forEach(function(t) { t.enabled = isVideoOn; });
-    userVideo.classList.toggle('chat-call__user-video--active', isVideoOn);
-    callVideoToggleBtn.className = 'chat-call__ctrl chat-call__ctrl--video' + (isVideoOn ? '' : ' chat-call__ctrl--off');
-  }
-
-  // ── Call event listeners ──
-  if (audioCallBtn) audioCallBtn.addEventListener('click', function() { startCall(false); });
-  if (videoCallBtn) videoCallBtn.addEventListener('click', function() { startCall(true); });
-  if (callEndBtn) callEndBtn.addEventListener('click', endCall);
-  if (callMuteBtn) callMuteBtn.addEventListener('click', toggleMute);
-  if (callVideoToggleBtn) callVideoToggleBtn.addEventListener('click', toggleVideo);
-  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && inCall) endCall(); });
 })();
 `;
-  fs.writeFileSync(path.join(distDirJs, 'script.js'), jsSrc + '\n' + chatJs.replace('{{SIGNAL_URL}}', signalUrl));
+  fs.writeFileSync(path.join(distDirJs, 'script.js'), jsSrc + '\n' + chatJs);
+
+  // Owner-only on-site editor: shipped as a separate asset and lazy-loaded
+  // by script.js only after ownership is verified, so visitors never
+  // download editor code.
+  try {
+    const editorSrc = fs.readFileSync(path.join(process.cwd(), 'js', 'site-editor.js'), 'utf8');
+    fs.writeFileSync(path.join(distDirJs, 'editor.js'), editorSrc);
+  } catch {
+    // Editor is optional — the site works without it.
+  }
 
   return teacherId
     ? 'Site built! Live at /s/' + teacherId

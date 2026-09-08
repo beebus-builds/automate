@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContent } from '@/lib/db';
 import { ensureSiteBuild } from '@/lib/builder';
+import { getSessionUser } from '@/lib/auth';
 import fs from 'fs';
 import path from 'path';
 
@@ -25,10 +26,14 @@ export async function GET(
   try {
     const resolvedParams = await params;
     const pathSegments = resolvedParams.path || [];
-    const siteDir = path.join(process.cwd(), 'public', '_site');
+    const user = await getSessionUser();
+    if (!user?.id) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+    const siteDir = path.join(process.cwd(), 'public', '_site', String(user.id));
 
-    const data = await getContent();
-    await ensureSiteBuild(data, undefined, false);
+    const data = await getContent(user.id);
+    await ensureSiteBuild(data, user.id, false);
 
     if (!fs.existsSync(path.join(siteDir, 'index.html'))) {
       return NextResponse.json({ error: 'Site not built' }, { status: 500 });
@@ -44,6 +49,10 @@ export async function GET(
 
     if (fs.existsSync(targetPath) && fs.statSync(targetPath).isDirectory()) {
       targetPath = path.join(targetPath, 'index.html');
+    } else if (!fs.existsSync(targetPath) && !path.extname(targetPath)) {
+      // Clean URLs like /site-preview/about resolve to about.html.
+      const htmlCandidate = targetPath + '.html';
+      if (fs.existsSync(htmlCandidate)) targetPath = htmlCandidate;
     }
 
     if (fs.existsSync(targetPath) && fs.statSync(targetPath).isFile()) {

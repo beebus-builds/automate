@@ -1,21 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pool } from '@/lib/db';
-import { hashPassword, verifyPassword, createSession, getSessionUser, clearSession, rotateSession } from '@/lib/auth';
+import { hashPassword, verifyPassword, createSession, getSessionUser, clearSession, rotateSession, clearAllSessions } from '@/lib/auth';
 import { clientIp, rateLimit } from '@/lib/rate-limit';
+import { encryptSecret } from '@/lib/crypto';
+import { logger } from '@/lib/logger';
+import crypto from 'crypto';
 
 function validateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
 }
 
 function validatePassword(password: string): string | null {
-  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (password.length < 10) return 'Password must be at least 10 characters';
   if (password.length > 128) return 'Password must be at most 128 characters';
   if (/[\x00-\x1f\x7f]/.test(password)) return 'Password contains invalid characters';
+  // Require at least one letter + one number/symbol for prod strength (optional but recommended)
+  if (!/[A-Za-z]/.test(password) || !/[^A-Za-z]/.test(password)) return 'Password must include both letters and numbers/symbols';
   return null;
 }
 
 function sanitizeName(name: string): string {
-  return name.replace(/[<>"'&]/g, '').trim().slice(0, 100);
+  // Allow apostrophes, quotes, accents (O'Brien, D'Souza). Strip only
+  // angle brackets / control chars; escaping happens on render.
+  return (name || '')
+    .replace(/[<>\x00-\x1f\x7f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 100);
+}
+
+/** Constant-time dummy hash to equalize login timing for unknown emails. */
+function dummyVerify(): void {
+  try {
+    crypto.pbkdf2Sync('dummy-password-timing-guard', 'dummy-salt-value-1234567890', 50000, 64, 'sha512');
+  } catch {}
 }
 
 export async function GET() {
@@ -36,13 +54,23 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { action, email, password, name, vercel_token } = body || {};
+    const normalizedEmail = typeof email === 'string' ? email.toLowerCase().trim().slice(0, 254) : '';
+
+    // Per-email throttle on top of the per-IP throttle (enumeration + brute-force guard).
+    if ((action === 'login' || action === 'register') && normalizedEmail) {
+      const emailRl = await rateLimit(`auth-email:${normalizedEmail}`, 8, 5 * 60_000);
+      if (!emailRl.allowed) {
+        return NextResponse.json({ error: 'Too many attempts for this email. Try again later.' }, { status: 429 });
+      }
+    }
 
     if (action === 'token') {
       const user = await getSessionUser();
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      const safeToken = typeof vercel_token === 'string' ? vercel_token.replace(/[^a-zA-Z0-9_\-]/g, '').slice(0, 64) : '';
+      const raw = typeof vercel_token === 'string' ? vercel_token.trim().slice(0, 200) : '';
+      const safeToken = raw ? encryptSecret(raw) : '';
       await pool.query('UPDATE users SET vercel_token = $1 WHERE id = $2', [safeToken, user.id]);
       return NextResponse.json({ ok: true });
     }
@@ -93,6 +121,7 @@ export async function POST(request: NextRequest) {
       );
 
       if (rows.length === 0) {
+        dummyVerify();
         return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
       }
 
@@ -111,9 +140,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (action === 'logout-all') {
+      const user = await getSessionUser();
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      await clearAllSessions(user.id);
+      return NextResponse.json({ ok: true });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (err: any) {
-    console.error('Auth error:', err.message);
+    logger.error('auth failed', { err, route: 'POST /api/auth' });
     return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
   }
 }

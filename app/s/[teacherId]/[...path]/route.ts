@@ -32,12 +32,21 @@ export async function GET(
     }
 
     const siteRoot = path.join(process.cwd(), 'public', '_site', teacherId);
-    const filePath = path.resolve(siteRoot, ...(pathSegments || []));
+    let filePath = path.resolve(siteRoot, ...(pathSegments || []));
 
     // Path-traversal guard: resolved path must stay inside the site root.
     const rootWithSep = siteRoot.endsWith(path.sep) ? siteRoot : siteRoot + path.sep;
     if (filePath !== siteRoot && !filePath.startsWith(rootWithSep)) {
       return new NextResponse('Not found', { status: 404 });
+    }
+
+    // Multi-page sites: directories serve their index.html, and clean
+    // URLs like /s/1/about resolve to about.html.
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+      filePath = path.join(filePath, 'index.html');
+    } else if (!fs.existsSync(filePath) && !path.extname(filePath)) {
+      const htmlCandidate = filePath + '.html';
+      if (fs.existsSync(htmlCandidate)) filePath = htmlCandidate;
     }
 
     if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {

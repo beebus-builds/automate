@@ -4,13 +4,12 @@
   "description": "A full-stack teacher portfolio website generator",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev -p 8000\" \"python python-server/server.py\"",
+    "dev": "next dev -p 8000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:py": "python -m unittest discover -s python-server/tests -v"
+    "test": "vitest run"
   },
   "dependencies": {
     "@types/archiver": "^8.0.0",
@@ -18,12 +17,15 @@
     "better-sqlite3": "^13.0.2",
     "concurrently": "^10.0.4",
     "next": "16.2.12",
+    "nodemailer": "^6.9.14",
     "pg": "^8.22.0",
+    "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.14.1",
     "@types/pg": "^8.20.0",
@@ -31,6 +33,7 @@
     "@types/react-dom": "^19.1.2",
     "eslint": "^9.23.0",
     "eslint-config-next": "16.2.12",
+    "postcss": "^8.5.27",
     "tailwindcss": "^4.1.4",
     "typescript": "^5.8.3",
     "vitest": "^3.0.0"
@@ -39,6 +42,7 @@
     "better-sqlite3@13.0.2": true,
     "esbuild@0.28.1": true,
     "unrs-resolver@1.12.2": true,
-    "sharp@0.34.5": true
+    "sharp@0.34.5": true,
+    "nodemailer@6.9.14": true
   }
 }

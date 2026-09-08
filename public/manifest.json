@@ -1,15 +1,38 @@
 {
+  "id": "/",
   "name": "TeacherFolio",
   "short_name": "TeacherFolio",
-  "description": "Build and manage teacher portfolio websites",
-  "start_url": "/",
+  "description": "Build and manage teacher portfolio websites — chat builder, 1,000+ themes, deploy or ZIP export.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
   "background_color": "#090d16",
   "theme_color": "#6366f1",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "categories": ["education", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
+  "launch_handler": { "client_mode": "navigate-existing" },
+  "handle_links": "preferred",
+  "edge_side_panel": { "preferred_width": 400 },
   "icons": [
-    { "src": "/icon.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" },
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
-  ]
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/desktop-1.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "TeacherFolio chat builder on desktop" },
+    { "src": "/screenshots/mobile-1.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow", "label": "TeacherFolio builder on mobile" }
+  ],
+  "shortcuts": [
+    { "name": "Build Site", "short_name": "Build", "description": "Open the chat builder", "url": "/build", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Studio", "short_name": "Studio", "description": "Visual drag & drop studio", "url": "/studio", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Dashboard", "short_name": "Dashboard", "description": "Messages, bookings & analytics", "url": "/dashboard", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "shortcuts_icons": [],
+  "related_applications": [],
+  "prefer_related_applications": false
 }

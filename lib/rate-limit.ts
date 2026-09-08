@@ -5,18 +5,29 @@ export interface RateLimitResult {
   retryAfterMs?: number;
 }
 
-// NOTE: better-sqlite3 binds each `?` occurrence positionally, so repeated
-// parameters must be repeated in the params array (db.ts rewrites $n -> ?).
+// NOTE: better-sqlite3 binds each `?` occurrence positionally, so the SQLite
+// variant uses explicit `?` placeholders with exactly 5 params:
+// [key, expiry, now, now, expiry] matching
+// [VALUES key, VALUES expiry, hits-WHEN now, window-WHEN now, window-THEN expiry].
 //
 // `window_start` stores the absolute expiry of the current window.
 // $2 is "now" and $3 is "now + windowMs" (the expiry). The window only resets
 // once the stored expiry is in the past.
-const UPSERT = `
+const UPSERT_PG = `
   INSERT INTO rate_limits (rl_key, hits, window_start)
   VALUES ($1, 1, $3)
   ON CONFLICT (rl_key) DO UPDATE SET
     hits = CASE WHEN window_start < $2 THEN 1 ELSE hits + 1 END,
     window_start = CASE WHEN window_start < $2 THEN $3 ELSE window_start END
+  RETURNING hits, window_start
+`;
+
+const UPSERT_SQLITE = `
+  INSERT INTO rate_limits (rl_key, hits, window_start)
+  VALUES (?, 1, ?)
+  ON CONFLICT (rl_key) DO UPDATE SET
+    hits = CASE WHEN window_start < ? THEN 1 ELSE hits + 1 END,
+    window_start = CASE WHEN window_start < ? THEN ? ELSE window_start END
   RETURNING hits, window_start
 `;
 
@@ -45,11 +56,12 @@ export async function rateLimit(
   }
 
   try {
-    const params =
-      backend === 'sqlite'
-        ? [key, expiryIso, nowIso, nowIso, expiryIso]
-        : [key, nowIso, expiryIso];
-    const { rows } = await pool.query(UPSERT, params);
+    const isSqlite = backend === 'sqlite';
+    const sql = isSqlite ? UPSERT_SQLITE : UPSERT_PG;
+    const params = isSqlite
+      ? [key, expiryIso, nowIso, nowIso, expiryIso]
+      : [key, nowIso, expiryIso];
+    const { rows } = await pool.query(sql, params);
     const row = rows[0];
     if (!row) return { allowed: true };
 

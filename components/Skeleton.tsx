@@ -57,16 +57,4 @@ export function SkeletonCms() {
   );
 }
 
-export function SkeletonCalls() {
-  return (
-    <div className="h-screen w-full bg-surface-900 flex flex-col items-center justify-center gap-4">
-      <div className="skeleton skeleton-circle w-20 h-20" />
-      <div className="skeleton skeleton-text w-36" style={{ height: 14 }} />
-      <div className="skeleton skeleton-text w-24 opacity-60" style={{ height: 10 }} />
-      <div className="flex gap-3 mt-2">
-        <div className="skeleton skeleton-circle w-12 h-12" />
-        <div className="skeleton skeleton-circle w-12 h-12" />
-      </div>
-    </div>
-  );
-}
+
