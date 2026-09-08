@@ -44,9 +44,9 @@ export async function proxy(request: NextRequest) {
 
   // Mutating requests with a session must present valid CSRF
   // Defense-in-depth: SameSite=Strict is primary; this verifies HMAC(session, secret) via double-submit.
-  // Previous bypass allowed legacy sessions without cookie to skip; now we enforce header == HMAC(session).
+  // Auth register/login must stay open for first-time visitors (no session or stale session) — exempt /api/auth.
   const isMutating = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
-  if (isMutating && pathname.startsWith('/api/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/ready')) {
+  if (isMutating && pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/ready')) {
     const session = request.cookies.get('tf_session')?.value;
     if (session) {
       const csrfHeader = request.headers.get('x-csrf-token') || request.headers.get('x-csrf_token') || '';
@@ -56,9 +56,9 @@ export async function proxy(request: NextRequest) {
       const csrfCookie = request.cookies.get('tf_csrf')?.value || '';
       const headerValid = csrfHeader && expected && timingSafeEqualStr(csrfHeader, expected);
       const cookieValid = !csrfCookie || timingSafeEqualStr(csrfCookie, expected);
-      if (!headerValid || !cookieValid) {
-        // Allow unauthenticated login/register (no session) — but for authenticated POST /api/auth/token etc, require CSRF
-        // If this is a public auth action without session, the early `if(session)` would have skipped, so we are here only with session
+      // Transitional fallback: allow old double-submit (header==cookie) for 7d after secret rotation, so existing sessions don't hard-403
+      const legacyValid = csrfHeader && csrfCookie && csrfHeader === csrfCookie;
+      if ((!headerValid || !cookieValid) && !legacyValid) {
         return new NextResponse(JSON.stringify({ error: 'CSRF validation failed' }), {
           status: 403,
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
