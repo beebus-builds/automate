@@ -965,7 +965,7 @@ function renderHero(c: any, e: any, variant: string): string {
   // Profile photo collected in chat (heroImage) or Studio — replaces the initials avatar.
   // Strict allowlist: http(s), protocol-relative, root-relative, or data:image only.
   const photoUrl = String(h.heroImage || h.photo || '');
-  const photo = /^(https?:\/\/|\/\/|\/|data:image\/)/i.test(photoUrl) ? e(photoUrl) : '';
+  const photo = /^(https?:\/\/|\/\/|\/)/i.test(photoUrl) || /^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(photoUrl) ? e(photoUrl) : '';
   const avatarInner = photo
     ? `<img src="${photo}" alt="${t(h.title || 'Teacher photo')}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" loading="lazy" />`
     : `<span class="hero__avatar-text"${variant === 'split' ? ' style="font-size:3.5rem"' : ''}>${initials}</span>`;
@@ -1270,6 +1270,8 @@ function renderCustomSection(s: any, e: any): string {
   }
   const alt = s.style === 'alt' ? ' section--alt' : '';
   const sectionId = s.id || 'custom';
+  // Sanitize legacy freeform content — escape to prevent stored XSS
+  const safeContent = e(String(s.content || '').slice(0, 5000));
   return `<section class="section${alt}" id="sec-${e(sectionId)}">
   <div class="container">
     <div class="section__header reveal">
@@ -1277,15 +1279,20 @@ function renderCustomSection(s: any, e: any): string {
       <h2 class="section__title">${e(s.title || '')}</h2>
       ${s.subtitle ? '<p class="section__subtitle">' + e(s.subtitle) + '</p>' : ''}
     </div>
-    <div class="custom-section__content reveal">${s.content || ''}</div>
+    <div class="custom-section__content reveal">${safeContent}</div>
   </div>
 </section>`;
+}
+
+function isSafeBgColor(c: string): boolean {
+  const s = String(c || '').trim();
+  return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(s) || /^rgba?\(\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?\s*,\s*\d+(\.\d+)?(\s*,\s*\d*\.?\d+\s*)?\)$/i.test(s) || /^hsla?\(.+\)$/i.test(s);
 }
 
 function applySectionBg(sectionHtml: string, cfg: any, e: (s: string) => string): string {
   if (!cfg) return sectionHtml;
   const styles: string[] = [];
-  if (cfg.bgColor) styles.push('background-color:' + cfg.bgColor);
+  if (cfg.bgColor && isSafeBgColor(cfg.bgColor)) styles.push('background-color:' + cfg.bgColor);
   if (cfg.bgPattern && cfg.bgPattern !== 'none') {
     const pats: Record<string, string> = {
       dots: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px) 20px 20px',
@@ -1338,7 +1345,12 @@ const NAV_LABELS: Record<string, string> = {
 export async function runBuild(data: any, teacherId: number | string): Promise<string> {
   const fs = require('fs');
   const path = require('path');
-  const distDir = path.join(process.cwd(), 'public', '_site', String(teacherId));
+  const idStr = String(teacherId ?? 'preview');
+  if (!/^(?:\d+|preview)$/.test(idStr)) throw new Error('Invalid teacherId');
+  const distDir = path.join(process.cwd(), 'public', '_site', idStr);
+  const root = path.join(process.cwd(), 'public', '_site');
+  const resolved = path.resolve(distDir);
+  if (!resolved.startsWith(path.resolve(root) + path.sep) && resolved !== path.resolve(root)) throw new Error('Path traversal');
 
   if (fs.existsSync(distDir)) {
     fs.rmSync(distDir, { recursive: true });
@@ -1742,7 +1754,8 @@ export async function runBuild(data: any, teacherId: number | string): Promise<s
   const ogImage = seo.ogImage || (siteBase ? siteBase + '/api/og?teacherId=' + teacherId : '');
   const gaId = seo.googleAnalytics || '';
   const gaScript = gaId ? '<script async src="https://www.googletagmanager.com/gtag/js?id=' + e(gaId) + '"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","' + e(gaId) + '");</script>' : '';
-  const layoutClass = 'class="layout-' + (data.theme?.layout || 'wide') + ' sec-' + (se_sectionStyle()) + ' card-' + (se_cardStyle()) + '"';
+  const themeLayout = typeof data.theme?.layout === 'string' ? data.theme.layout : (data.theme?.layout?.style || 'wide');
+  const layoutClass = 'class="layout-' + e(String(themeLayout)) + ' sec-' + e(String(se_sectionStyle())) + ' card-' + e(String(se_cardStyle())) + '"';
   function se_sectionStyle() { return (data.style || {}).sectionStyle || 'bordered'; }
   function se_cardStyle() { return (data.style || {}).cardStyle || 'bordered'; }
 
@@ -1763,6 +1776,16 @@ export async function runBuild(data: any, teacherId: number | string): Promise<s
       const cta = renderHomeCta();
       if (cta) chunks.push(cta);
     }
+    function sanitizeCustomHeadDb(head: unknown): string {
+      const s = String(head || '').trim();
+      if (!s) return '';
+      const allowed = s.match(/<(meta|link)\b[^>]*>/gi);
+      if (!allowed) return '';
+      return allowed
+        .map(tag => tag.replace(/\s*on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '').replace(/javascript:/gi, ''))
+        .join('\n')
+        .slice(0, 2000);
+    }
     let page = tpl;
     page = page.replace('{{NAV_HTML}}', navHtmlFor(pageFile));
     page = page.replace('{{SECTIONS_HTML}}', chunks.join('\n\n'));
@@ -1770,7 +1793,7 @@ export async function runBuild(data: any, teacherId: number | string): Promise<s
     page = page.replace(/{{INITIALS}}/g, siteInitials);
     page = page.replace(/{{YEAR}}/g, String(year));
     page = page.replace('{{SOCIAL_HTML}}', socialHtml);
-    page = page.replace('{{CUSTOM_HEAD}}', data.customHead || '');
+    page = page.replace('{{CUSTOM_HEAD}}', sanitizeCustomHeadDb(data.customHead || ''));
     page = page.replace(/{{SEO_TITLE}}/g, e(pageTitleFor(pageFile)));
     page = page.replace(/{{SEO_DESC}}/g, e(metaDesc));
     page = page.replace(/{{SEO_IMAGE}}/g, e(ogImage));

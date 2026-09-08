@@ -56,12 +56,32 @@ export async function GET(
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME[ext] || 'application/octet-stream';
     const content = fs.readFileSync(filePath);
+    const isHtml = ext === '.html';
+    const extraHeaders: Record<string, string> = isHtml
+      ? {
+          'Content-Security-Policy': [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+            "font-src 'self' https://fonts.gstatic.com",
+            "img-src 'self' data: blob: https:",
+            "frame-src https://www.youtube.com https://player.vimeo.com https://www.google.com",
+            "connect-src 'self'",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+          ].join('; '),
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+          'X-Frame-Options': 'SAMEORIGIN',
+        }
+      : {};
 
     return new NextResponse(content, {
       headers: {
         'Content-Type': contentType,
         'X-Content-Type-Options': 'nosniff',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Cache-Control': isHtml ? 'no-cache, no-store, must-revalidate' : 'public, max-age=3600, stale-while-revalidate=86400',
+        ...extraHeaders,
       },
     });
   } catch {

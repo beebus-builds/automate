@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaRegister from '@/components/PwaRegister';
+import CsrfInjector from '@/components/CsrfInjector';
 
 export const viewport: Viewport = {
   themeColor: [
@@ -13,12 +14,17 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://teacherfolio.vercel.app';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: { default: 'TeacherFolio — Teaching websites ready in minutes', template: '%s | TeacherFolio' },
   description: 'Chat-based builder for teacher portfolios. Pick from 1,000+ themes, publish to Vercel or download a standalone ZIP. No coding required.',
   keywords: ['teacher portfolio', 'teacher website builder', 'educator portfolio', 'teaching website'],
   authors: [{ name: 'TeacherFolio' }],
   manifest: '/manifest.json',
+  alternates: { canonical: siteUrl },
+  robots: { index: true, follow: true },
   openGraph: {
     type: 'website',
     siteName: 'TeacherFolio',
@@ -63,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="noise-overlay" />
         <div className="fixed inset-x-0 top-0 h-[2px] z-50 bg-gradient-to-r from-brand-500 via-purple-500 to-pink-500 opacity-60" />
         {children}
+        <CsrfInjector />
         <PwaRegister />
       </body>
     </html>

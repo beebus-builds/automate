@@ -1,7 +1,29 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function proxy(request: NextRequest) {
+async function hmacHex(message: string, secret: string): Promise<string> {
+  try {
+    const enc = new TextEncoder();
+    const key = await (globalThis as any).crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await (globalThis as any).crypto.subtle.sign('HMAC', key, enc.encode(message));
+    return Array.from(new Uint8Array(sig as ArrayBuffer)).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    // Fallback to Node crypto if subtle not available (should not happen on edge)
+    try {
+      const { createHmac } = await import('node:crypto');
+      return createHmac('sha256', secret).update(message).digest('hex');
+    } catch { return ''; }
+  }
+}
+
+function timingSafeEqualStr(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method.toUpperCase();
 
@@ -20,18 +42,23 @@ export function proxy(request: NextRequest) {
     return res;
   }
 
-  // Mutating requests with a session must present valid double-submit CSRF
-  // tf_session (httpOnly) + tf_csrf (readable) vs x-csrf-token header.
-  // Primary mitigation is SameSite=Strict; this is defense-in-depth.
+  // Mutating requests with a session must present valid CSRF
+  // Defense-in-depth: SameSite=Strict is primary; this verifies HMAC(session, secret) via double-submit.
+  // Previous bypass allowed legacy sessions without cookie to skip; now we enforce header == HMAC(session).
   const isMutating = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
-  if (isMutating && pathname.startsWith('/api/') && !pathname.startsWith('/api/auth') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/ready')) {
+  if (isMutating && pathname.startsWith('/api/') && !pathname.startsWith('/api/health') && !pathname.startsWith('/api/ready')) {
     const session = request.cookies.get('tf_session')?.value;
     if (session) {
-      const csrfCookie = request.cookies.get('tf_csrf')?.value || '';
       const csrfHeader = request.headers.get('x-csrf-token') || request.headers.get('x-csrf_token') || '';
-      // If client has a CSRF cookie (modern flow), enforce match; legacy sessions without cookie are allowed to pass
-      // to avoid breaking old logins — they will get a new cookie on next login/rotate.
-      if (csrfCookie && csrfHeader !== csrfCookie) {
+      const secret = process.env.CSRF_SECRET || process.env.DATABASE_URL || 'tf-csrf-fallback-not-for-prod';
+      const expected = await hmacHex(session, secret);
+      // Require header; also optionally verify cookie matches expected for double-submit consistency
+      const csrfCookie = request.cookies.get('tf_csrf')?.value || '';
+      const headerValid = csrfHeader && expected && timingSafeEqualStr(csrfHeader, expected);
+      const cookieValid = !csrfCookie || timingSafeEqualStr(csrfCookie, expected);
+      if (!headerValid || !cookieValid) {
+        // Allow unauthenticated login/register (no session) — but for authenticated POST /api/auth/token etc, require CSRF
+        // If this is a public auth action without session, the early `if(session)` would have skipped, so we are here only with session
         return new NextResponse(JSON.stringify({ error: 'CSRF validation failed' }), {
           status: 403,
           headers: { 'Content-Type': 'application/json; charset=utf-8' },

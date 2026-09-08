@@ -35,10 +35,26 @@ export async function GET(
     let html = fs.readFileSync(indexPath, 'utf8');
     // Inject base tag so relative CSS/JS paths resolve correctly
     html = html.replace('<head>', `<head><base href="/s/${teacherId}/">`);
+    const siteCsp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      "frame-src https://www.youtube.com https://player.vimeo.com https://www.google.com",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
     return new NextResponse(html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Content-Security-Policy': siteCsp,
+        'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'X-Frame-Options': 'SAMEORIGIN',
       },
     });
   } catch (err) {

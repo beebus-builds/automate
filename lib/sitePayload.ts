@@ -46,36 +46,50 @@ export function gallerySectionFromPhotos(photos: string[], title = 'Classroom Mo
  * for PUT /api/data + POST /api/build. Used by both /build and /studio.
  */
 export function teacherDataToContent(data: TeacherData) {
-  const theme = getAllThemes().find((t) => t.id === data.theme);
-  const initials = data.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || 'TP';
+  const d: any = data || {};
+  const safeName = String(d.name || '').trim();
+  const safeSubject = String(d.subject || '').trim();
+  const safeBio = String(d.bio || '').trim();
+  const safeYears = String(d.years || '5').trim();
+  const coursesArr: string[] = Array.isArray(d.courses) ? d.courses.filter((c: any) => typeof c === 'string' && c.trim()).map((c: string) => c.trim()).slice(0, 50) : [];
+  const galleryArr: string[] = Array.isArray(d.gallery) ? d.gallery.filter((u: any) => typeof u === 'string' && u.trim()).slice(0, 20) : [];
+  const customArr: any[] = Array.isArray(d.customSections) ? d.customSections : [];
+  const theme = getAllThemes().find((t) => t.id === d.theme);
+  // Unicode-aware initials: use Array.from to handle emoji/surrogates, normalize NFC
+  const initials = (safeName.normalize('NFC').split(/\s+/).filter(Boolean).map(n => Array.from(n)[0] || '').join('').slice(0, 2).toUpperCase() || 'TP').slice(0, 4);
   const courseList =
-    data.courses.length > 0
-      ? data.courses.map((c) => ({
+    coursesArr.length > 0
+      ? coursesArr.map((c) => ({
           icon: '📘',
-          title: c,
-          description: `Engaging ${c.toLowerCase()} instruction tailored for student growth.`,
+          title: String(c).slice(0, 120),
+          description: `Engaging ${String(c).slice(0, 80).toLowerCase()} instruction tailored for student growth.`,
           level: 'All Levels',
         }))
       : [
           {
             icon: '📘',
-            title: data.subject || 'General Education',
-            description: `Comprehensive ${data.subject || 'academic'} instruction.`,
+            title: safeSubject ? String(safeSubject).slice(0, 120) : 'General Education',
+            description: `Comprehensive ${safeSubject || 'academic'} instruction.`,
             level: 'All Levels',
           },
         ];
 
-  const customSections = [...(data.customSections || [])];
+  const customSections = [...customArr];
   // Auto-add a gallery section from chat-collected photos (once).
-  if ((data.gallery || []).length > 0 && !customSections.some((s: any) => s?.galleryAuto)) {
-    customSections.push({ ...gallerySectionFromPhotos(data.gallery), galleryAuto: true });
+  if (galleryArr.length > 0 && !customSections.some((s: any) => s?.galleryAuto)) {
+    customSections.push({ ...gallerySectionFromPhotos(galleryArr), galleryAuto: true });
   }
 
   const layoutSections: LayoutSectionConfig[] =
-    data.layoutSections && data.layoutSections.length > 0
-      ? data.layoutSections
-      : defaultLayoutSections(customSections.map((s: any) => s.id));
+    Array.isArray(d.layoutSections) && d.layoutSections.length > 0
+      ? d.layoutSections
+      : defaultLayoutSections(customSections.map((s: any) => String(s.id || makeId('sec'))));
 
+  const safePhoto = String(d.photo || '').slice(0, 500);
+  const safeEmail = String(d.email || '').slice(0, 254);
+  const safePhone = String(d.phone || '').slice(0, 60);
+  const safeQuote = String(d.quote || '').slice(0, 1000);
+  const safeAch = String(d.achievements || '').slice(0, 2000);
   return {
     theme: theme ? mapThemeToBuildData(theme) : { name: 'theme-theme-1' },
     style: {
@@ -86,62 +100,62 @@ export function teacherDataToContent(data: TeacherData) {
       headerFixed: true,
       buttonStyle: theme?.layout?.buttonStyle || 'rounded',
       sectionStyle: theme?.layout?.cardStyle === 'glass' ? 'glass' : 'bordered',
-      ...(data.style || {}),
+      ...(d.style && typeof d.style === 'object' ? d.style : {}),
     },
     layout: { sections: layoutSections },
     meta: {
-      directoryListed: data.meta?.directoryListed !== false,
-      aiReplies: data.meta?.aiReplies !== false,
+      directoryListed: d.meta?.directoryListed !== false,
+      aiReplies: d.meta?.aiReplies !== false,
     },
     visibility: {
-      showAbout: data.visibility?.about !== false,
-      showCourses: data.visibility?.courses !== false,
-      showPhilosophy: data.visibility?.philosophy !== false,
-      showAchievements: data.visibility?.achievements !== false,
-      showContact: data.visibility?.contact !== false,
+      showAbout: d.visibility?.about !== false,
+      showCourses: d.visibility?.courses !== false,
+      showPhilosophy: d.visibility?.philosophy !== false,
+      showAchievements: d.visibility?.achievements !== false,
+      showContact: d.visibility?.contact !== false,
     },
     customSections,
-    site: { title: `${data.name} — Teacher Portfolio` },
+    site: { title: `${safeName.slice(0, 120) || 'Teacher'} — Teacher Portfolio` },
     seo: {
-      metaTitle: `${data.name} — Educator Portfolio`,
-      metaDesc: (data.bio || '').slice(0, 160) || `Professional portfolio of ${data.name}, ${data.subject} educator.`,
-      ogImage: data.photo || '',
+      metaTitle: `${safeName.slice(0, 80) || 'Teacher'} — Educator Portfolio`,
+      metaDesc: safeBio.slice(0, 160) || `Professional portfolio of ${safeName || 'Teacher'}, ${safeSubject || 'educator'} educator.`,
+      ogImage: safePhoto,
       googleAnalytics: '',
     },
     hero: {
-      tagline: `${data.subject || 'Educator'} Portfolio`,
-      title: `Welcome to ${data.name}'s Classroom`,
-      highlight: data.name,
-      description: data.bio || 'Dedicated to inspiring students and fostering academic excellence.',
+      tagline: `${safeSubject ? String(safeSubject).slice(0, 80) : 'Educator'} Portfolio`,
+      title: `Welcome to ${safeName.slice(0, 80) || 'My'}'s Classroom`,
+      highlight: safeName.slice(0, 80),
+      description: safeBio.slice(0, 500) || 'Dedicated to inspiring students and fostering academic excellence.',
       initials,
-      heroImage: data.photo || '',
-      photo: data.photo || '',
+      heroImage: safePhoto,
+      photo: safePhoto,
     },
     about: {
-      lead: data.bio,
+      lead: safeBio.slice(0, 1000),
       paragraphs: [
         'I believe every student possesses unique talents waiting to be unlocked.',
         'My instructional approach centers on curiosity, critical thinking, and mutual respect.',
       ],
       stats: [
-        { number: data.years || '5', suffix: '+', label: 'Years Teaching' },
+        { number: safeYears.slice(0, 10) || '5', suffix: '+', label: 'Years Teaching' },
         { number: '300', suffix: '+', label: 'Students Mentored' },
-        { number: data.courses.length.toString() || '3', suffix: '', label: 'Subjects Taught' },
+        { number: String(coursesArr.length || 3).slice(0, 10), suffix: '', label: 'Subjects Taught' },
       ],
     },
     courses: courseList,
     philosophy: {
-      quote: data.quote || 'Education is not the filling of a pail, but the lighting of a fire.',
-      attribution: data.quote ? `— ${data.name}` : '— William Butler Yeats',
+      quote: safeQuote || 'Education is not the filling of a pail, but the lighting of a fire.',
+      attribution: safeQuote ? `— ${safeName.slice(0, 80)}` : '— William Butler Yeats',
       points: [
         { title: 'Student-Centered', description: 'Tailoring lessons to accommodate diverse learning styles.' },
         { title: 'Active Engagement', description: 'Encouraging hands-on problem solving and discussion.' },
         { title: 'Growth Mindset', description: 'Instilling resilience and continuous learning habits.' },
       ],
     },
-    achievements: data.achievements
-      ? [{ year: new Date().getFullYear().toString(), title: data.achievements.split(',')[0], description: data.achievements }]
+    achievements: safeAch
+      ? [{ year: new Date().getFullYear().toString(), title: safeAch.split(',')[0].slice(0, 120), description: safeAch.slice(0, 500) }]
       : [{ year: new Date().getFullYear().toString(), title: 'Dedicated Educator', description: 'Recognized for teaching excellence.' }],
-    contact: { email: data.email || 'contact@school.edu', phone: data.phone, location: 'School Campus' },
+    contact: { email: safeEmail || 'contact@school.edu', phone: safePhone, location: 'School Campus' },
   };
 }

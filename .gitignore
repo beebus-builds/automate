@@ -3,7 +3,8 @@ node_modules/
 *.db
 .env.local
 public/uploads/*
-public/_site/.gitkeep
+public/_site/*
+!public/_site/.gitkeep
 dist/
 backup-cms/
 

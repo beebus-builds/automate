@@ -6,7 +6,13 @@ const inFlight = new Map<string, Promise<string>>();
 const REBUILD_TTL_MS = 30_000;
 
 function siteDir(teacherId: number | string): string {
-  return path.join(process.cwd(), 'public', '_site', String(teacherId));
+  const idStr = String(teacherId);
+  if (!/^(?:\d+|preview)$/.test(idStr)) throw new Error('Invalid teacherId for siteDir');
+  const dist = path.join(process.cwd(), 'public', '_site', idStr);
+  const root = path.join(process.cwd(), 'public', '_site');
+  const resolved = path.resolve(dist);
+  if (!resolved.startsWith(path.resolve(root) + path.sep) && resolved !== path.resolve(root)) throw new Error('Path traversal in siteDir');
+  return dist;
 }
 
 function markerFile(teacherId: number | string): string {
