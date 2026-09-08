@@ -57,22 +57,24 @@ export function teacherDataToContent(data: TeacherData) {
   const theme = getAllThemes().find((t) => t.id === d.theme);
   // Unicode-aware initials: use Array.from to handle emoji/surrogates, normalize NFC
   const initials = (safeName.normalize('NFC').split(/\s+/).filter(Boolean).map(n => Array.from(n)[0] || '').join('').slice(0, 2).toUpperCase() || 'TP').slice(0, 4);
-  const courseList =
-    coursesArr.length > 0
-      ? coursesArr.map((c) => ({
-          icon: '📘',
-          title: String(c).slice(0, 120),
-          description: `Engaging ${String(c).slice(0, 80).toLowerCase()} instruction tailored for student growth.`,
-          level: 'All Levels',
-        }))
-      : [
+  const hasCourses = coursesArr.length > 0 || !!safeSubject;
+  const courseList = coursesArr.length > 0
+    ? coursesArr.map((c) => ({
+        icon: '📘',
+        title: String(c).slice(0, 120),
+        description: `Engaging ${String(c).slice(0, 80).toLowerCase()} instruction tailored for student growth.`,
+        level: 'All Levels',
+      }))
+    : safeSubject
+      ? [
           {
             icon: '📘',
-            title: safeSubject ? String(safeSubject).slice(0, 120) : 'General Education',
-            description: `Comprehensive ${safeSubject || 'academic'} instruction.`,
+            title: String(safeSubject).slice(0, 120),
+            description: `Comprehensive ${safeSubject} instruction.`,
             level: 'All Levels',
           },
-        ];
+        ]
+      : [];
 
   const customSections = [...customArr];
   // Auto-add a gallery section from chat-collected photos (once).
@@ -90,6 +92,9 @@ export function teacherDataToContent(data: TeacherData) {
   const safePhone = String(d.phone || '').slice(0, 60);
   const safeQuote = String(d.quote || '').slice(0, 1000);
   const safeAch = String(d.achievements || '').slice(0, 2000);
+  const hasAch = !!safeAch;
+  const hasContact = !!safeEmail || !!safePhone;
+  const hasBio = !!safeBio;
   return {
     theme: theme ? mapThemeToBuildData(theme) : { name: 'theme-theme-1' },
     style: {
@@ -108,11 +113,11 @@ export function teacherDataToContent(data: TeacherData) {
       aiReplies: d.meta?.aiReplies !== false,
     },
     visibility: {
-      showAbout: d.visibility?.about !== false,
-      showCourses: d.visibility?.courses !== false,
-      showPhilosophy: d.visibility?.philosophy !== false,
-      showAchievements: d.visibility?.achievements !== false,
-      showContact: d.visibility?.contact !== false,
+      showAbout: d.visibility?.about !== false && hasBio,
+      showCourses: (d.visibility?.courses !== false) && hasCourses,
+      showPhilosophy: d.visibility?.philosophy !== false && !!safeQuote,
+      showAchievements: (d.visibility?.achievements !== false) && hasAch,
+      showContact: (d.visibility?.contact !== false) && hasContact,
     },
     customSections,
     site: { title: `${safeName.slice(0, 120) || 'Teacher'} — Teacher Portfolio` },
@@ -140,7 +145,7 @@ export function teacherDataToContent(data: TeacherData) {
       stats: [
         { number: safeYears.slice(0, 10) || '5', suffix: '+', label: 'Years Teaching' },
         { number: '300', suffix: '+', label: 'Students Mentored' },
-        { number: String(coursesArr.length || 3).slice(0, 10), suffix: '', label: 'Subjects Taught' },
+        { number: String(coursesArr.length).slice(0, 10) || '0', suffix: '', label: 'Subjects Taught' },
       ],
     },
     courses: courseList,
@@ -153,9 +158,9 @@ export function teacherDataToContent(data: TeacherData) {
         { title: 'Growth Mindset', description: 'Instilling resilience and continuous learning habits.' },
       ],
     },
-    achievements: safeAch
+    achievements: hasAch
       ? [{ year: new Date().getFullYear().toString(), title: safeAch.split(',')[0].slice(0, 120), description: safeAch.slice(0, 500) }]
-      : [{ year: new Date().getFullYear().toString(), title: 'Dedicated Educator', description: 'Recognized for teaching excellence.' }],
-    contact: { email: safeEmail || 'contact@school.edu', phone: safePhone, location: 'School Campus' },
+      : [],
+    contact: { email: safeEmail, phone: safePhone, location: hasContact ? 'School Campus' : '' },
   };
 }
