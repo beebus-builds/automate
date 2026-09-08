@@ -11,6 +11,8 @@ import { parseMessage, extractImages, generateResponse, getSummary, emptyData, T
 import { getAllThemes, getCategories, categoryColors, searchThemes } from '@/lib/themes';
 import { teacherDataToContent } from '@/lib/sitePayload';
 import { recommendThemes } from '@/lib/recommend';
+import { recommendSectionTemplates } from '@/lib/sectionRecommend';
+import { SECTION_TEMPLATES } from '@/lib/sectionTemplates';
 import { runAssistant, makeSectionFromTemplate, AssistantMemory } from '@/lib/assistant/engine';
 import { auditSite } from '@/lib/audit';
 import { SkeletonPage } from '@/components/Skeleton';
@@ -135,6 +137,13 @@ export default function BuildPage() {
   }, [dataCollected, data]);
 
   const audit = useMemo(() => auditSite(data), [data]);
+  const sectionRecs = useMemo(() => {
+    if (!dataCollected) return [];
+    try {
+      const content = teacherDataToContent(data);
+      return recommendSectionTemplates(content);
+    } catch { return []; }
+  }, [data, dataCollected]);
 
   const VARIANTS: Record<string, string[]> = {
     hero: ['default','minimal','split'],
@@ -775,6 +784,45 @@ export default function BuildPage() {
                         ))}
                       </div>
                       <p className="text-[0.62rem] text-slate-600 mt-2">Tap a variant — the preview on the right updates instantly via `runBuild`.</p>
+                    </div>
+                  )}
+                  {sectionRecs.length > 0 && (
+                    <div className="glass rounded-2xl p-4 mt-4">
+                      <h3 className="text-sm font-bold text-white mb-3">✨ Suggested sections — tap to add</h3>
+                      <div className="flex flex-col gap-2">
+                        {sectionRecs.map(r => {
+                          const tpl = SECTION_TEMPLATES.find(t => t.id === r.templateId);
+                          return (
+                            <div key={r.templateId} className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.03] hover:border-brand-500/30 transition-colors">
+                              <span className="text-lg">{tpl?.icon || '📄'}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-bold text-white">{tpl?.name || r.templateId}</div>
+                                <div className="text-[0.68rem] text-slate-400 leading-relaxed">{r.reason}</div>
+                              </div>
+                              <button onClick={() => {
+                                const sec = tpl ? (tpl.make() as any) : null;
+                                if (!sec) return;
+                                const photos = (data.gallery || []).slice(0, 8);
+                                if (r.templateId === 'gallery' && photos.length) {
+                                  sec.blocks = photos.map((src: string, i: number) => ({ ...(sec.blocks[i % sec.blocks.length] || sec.blocks[0]), id: `blk-${Date.now().toString(36)}-${i}`, type: 'image' as const, src, alt: `Gallery photo ${i+1}` }));
+                                }
+                                setData(prev => ({
+                                  ...prev,
+                                  customSections: [...(prev.customSections || []), sec],
+                                  layoutSections: [...(prev.layoutSections && prev.layoutSections.length ? prev.layoutSections : [
+                                    { type: 'hero', variant: 'default' },
+                                    { type: 'about', variant: 'default' },
+                                    { type: 'courses', variant: 'default' },
+                                    { type: 'philosophy', variant: 'default' },
+                                    { type: 'achievements', variant: 'default' },
+                                    { type: 'contact', variant: 'default' },
+                                  ]), { type: 'custom', id: sec.id, variant: 'default' }],
+                                }));
+                              }} className="px-3 py-1.5 rounded-full text-xs font-bold bg-brand-500 text-white hover:bg-brand-600 transition-colors flex-shrink-0">+ Add</button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 

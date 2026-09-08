@@ -82,10 +82,18 @@ export function teacherDataToContent(data: TeacherData) {
     customSections.push({ ...gallerySectionFromPhotos(galleryArr), galleryAuto: true });
   }
 
-  const layoutSections: LayoutSectionConfig[] =
+  let layoutSections: LayoutSectionConfig[] =
     Array.isArray(d.layoutSections) && d.layoutSections.length > 0
-      ? d.layoutSections
+      ? [...d.layoutSections]
       : defaultLayoutSections(customSections.map((s: any) => String(s.id || makeId('sec'))));
+
+  // Auto-pick variant based on content volume: many courses → list/compact, many gallery → grid
+  if (hasCourses && coursesArr.length > 5) {
+    const idx = layoutSections.findIndex(l => l.type === 'courses');
+    if (idx >= 0 && layoutSections[idx].variant === 'default') {
+      layoutSections[idx] = { ...layoutSections[idx], variant: coursesArr.length > 8 ? 'compact' : 'list' };
+    }
+  }
 
   const safePhoto = String(d.photo || '').slice(0, 500);
   const safeEmail = String(d.email || '').slice(0, 254);
