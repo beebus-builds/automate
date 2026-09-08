@@ -136,6 +136,32 @@ export default function BuildPage() {
 
   const audit = useMemo(() => auditSite(data), [data]);
 
+  const VARIANTS: Record<string, string[]> = {
+    hero: ['default','minimal','split'],
+    about: ['default','text-only','photo-right'],
+    courses: ['default','list','compact'],
+    philosophy: ['default','cards-only','statement'],
+    achievements: ['default','timeline'],
+    contact: ['default','centered','minimal'],
+  };
+  const getVariant = (type: string) => data.layoutSections?.find(l => l.type === type)?.variant || 'default';
+  const setVariant = (type: string, variant: string) => {
+    setData(prev => {
+      const base = prev.layoutSections && prev.layoutSections.length ? [...prev.layoutSections] : [
+        { type: 'hero', variant: 'default' },
+        { type: 'about', variant: 'default' },
+        { type: 'courses', variant: 'default' },
+        { type: 'philosophy', variant: 'default' },
+        { type: 'achievements', variant: 'default' },
+        { type: 'contact', variant: 'default' },
+      ];
+      const idx = base.findIndex(l => l.type === type);
+      if (idx >= 0) base[idx] = { ...base[idx], variant };
+      else base.push({ type, variant });
+      return { ...prev, layoutSections: base };
+    });
+  };
+
   // Auto-pick subject-aware theme when collection finishes and user still on default
   useEffect(() => {
     if (!dataCollected || data.theme !== 'modern' || recommendations.length === 0) return;
@@ -731,6 +757,25 @@ export default function BuildPage() {
                     <button onClick={() => setShowAllThemes(true)} className="mb-4 px-4 py-2 bg-transparent text-brand-400 border border-brand-400/30 rounded-lg text-xs font-semibold hover:bg-brand-500/10 transition-colors">
                       Show all {filteredThemes.length} themes →
                     </button>
+                  )}
+
+                  {dataCollected && (
+                    <div className="glass rounded-2xl p-4 mt-4">
+                      <h3 className="text-sm font-bold text-white mb-3">🎛 Layout variants — live preview</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {Object.entries(VARIANTS).map(([type, opts]) => (
+                          <div key={type} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                            <div className="text-xs font-bold text-slate-300 capitalize mb-2">{type}</div>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {opts.map(v => (
+                                <button key={v} onClick={() => setVariant(type, v)} className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${getVariant(type)===v ? 'bg-brand-500 text-white border-brand-500' : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20 hover:text-white'}`}>{v}</button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[0.62rem] text-slate-600 mt-2">Tap a variant — the preview on the right updates instantly via `runBuild`.</p>
+                    </div>
                   )}
 
                   <div className="glass rounded-2xl p-6 mt-4">
