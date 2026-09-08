@@ -133,6 +133,20 @@ export default function BuildPage() {
     return recommendThemes(data, 6);
   }, [dataCollected, data]);
 
+  // Auto-pick subject-aware theme when collection finishes and user still on default
+  useEffect(() => {
+    if (!dataCollected || data.theme !== 'modern' || recommendations.length === 0) return;
+    const top = recommendations[0]?.theme?.id;
+    if (!top) return;
+    setData(prev => (prev.theme === 'modern' ? { ...prev, theme: top } : prev));
+    // subtle bot nudge (once)
+    setMsgs(prev => {
+      const already = prev.some(m => m.text.includes('Auto-picked'));
+      if (already) return prev;
+      return [...prev, { role: 'bot', text: `Auto-picked **${recommendations[0].theme.name}** for ${data.subject || 'your subject'} — change it anytime below or just say “try another theme”.` }];
+    });
+  }, [dataCollected, recommendations]);
+
   useEffect(() => {
     fetch('/api/auth')
       .then(r => r.json())
