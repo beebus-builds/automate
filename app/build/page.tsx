@@ -12,6 +12,7 @@ import { getAllThemes, getCategories, categoryColors, searchThemes } from '@/lib
 import { teacherDataToContent } from '@/lib/sitePayload';
 import { recommendThemes } from '@/lib/recommend';
 import { runAssistant, makeSectionFromTemplate, AssistantMemory } from '@/lib/assistant/engine';
+import { auditSite } from '@/lib/audit';
 import { SkeletonPage } from '@/components/Skeleton';
 
 const allThemes = getAllThemes();
@@ -132,6 +133,8 @@ export default function BuildPage() {
     if (!dataCollected || !data.name) return [];
     return recommendThemes(data, 6);
   }, [dataCollected, data]);
+
+  const audit = useMemo(() => auditSite(data), [data]);
 
   // Auto-pick subject-aware theme when collection finishes and user still on default
   useEffect(() => {
@@ -701,7 +704,18 @@ export default function BuildPage() {
                   )}
 
                   <div className="glass rounded-2xl p-6 mt-4">
-                    <h3 className="text-sm font-extrabold text-white mb-4">📋 Portfolio Summary</h3>
+                    <h3 className="text-sm font-extrabold text-white mb-2">📋 Portfolio Summary</h3>
+                    <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-xs font-bold border ${audit.score >= 80 ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : audit.score >= 60 ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' : 'bg-red-500/10 text-red-300 border-red-500/20'}`}>
+                      <span>{audit.score >= 80 ? '✓' : audit.score >= 60 ? '⚠' : '✗'} {audit.score}/100</span>
+                      <span className="font-normal text-slate-400">— {audit.issues.filter(i=>i.level==='error').length} errors, {audit.issues.filter(i=>i.level==='warn').length} warnings</span>
+                      <span className="ml-auto text-[0.6rem] text-slate-500">{audit.issues.filter(i=>i.level==='pass').length} checks passed</span>
+                    </div>
+                    {audit.issues.filter(i=>i.level!=='pass').slice(0,3).map((iss,i)=>(
+                      <div key={i} className={`flex gap-2 mb-1.5 px-3 py-2 rounded-lg text-xs border ${iss.level==='error'?'bg-red-500/10 border-red-500/20 text-red-300':'bg-amber-500/10 border-amber-500/20 text-amber-300'}`}>
+                        <span className="font-bold">{iss.level==='error'?'✗':'⚠'}</span>
+                        <span><strong>{iss.title}</strong> — {iss.detail} <em className="text-slate-400">· {iss.fix}</em></span>
+                      </div>
+                    ))}
                     {(() => {
                       const sel = allThemes.find(t => t.id === data.theme);
                       const sum = getSummary({ ...data, theme: sel?.name || data.theme || 'Modern' }, [{ id: sel?.id || '', label: sel?.name || data.theme || 'Modern' }]);
@@ -712,6 +726,9 @@ export default function BuildPage() {
                         </div>
                       ));
                     })()}
+                    {audit.issues.some(i=>i.level==='error') && (
+                      <div className="mt-3 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">Fix the errors above to unlock Generate — or <button onClick={handleGenerate} className="underline font-bold">generate anyway</button>.</div>
+                    )}
                     <button onClick={handleGenerate} disabled={building} className="w-full py-3.5 mt-5 bg-gradient-to-br from-brand-500 to-purple-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:-translate-y-0.5 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 inline-flex items-center justify-center gap-2">
                       {building ? (
                         <>
