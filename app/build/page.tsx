@@ -240,6 +240,35 @@ export default function BuildPage() {
     replyWithTyping('Great — I have everything I need! Your preview on the right is already taking shape ✨ You can pick a theme below, or just tell me in chat — e.g. **"a calm blue theme"**, **"rounded corners"**, or **"add a testimonials section"**.');
   };
 
+  async function compressToWebp(file: File): Promise<File> {
+    try {
+      const bitmap: any = await (async () => {
+        try { return await createImageBitmap(file); } catch {
+          const url = URL.createObjectURL(file);
+          const img = await new Promise<HTMLImageElement>((res, rej) => {
+            const el = new Image(); el.onload = () => res(el); el.onerror = rej; el.src = url;
+          });
+          URL.revokeObjectURL(url);
+          return img as unknown as ImageBitmap;
+        }
+      })();
+      const w = bitmap.width as number, h = bitmap.height as number;
+      if (!w || !h) return file;
+      const size = Math.min(w, h);
+      const sx = (w - size) / 2, sy = (h - size) / 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = 800; canvas.height = 800;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return file;
+      // @ts-ignore
+      ctx.drawImage(bitmap, sx, sy, size, size, 0, 0, 800, 800);
+      if (typeof bitmap.close === 'function') try { bitmap.close(); } catch {}
+      const blob: Blob | null = await new Promise(res => canvas.toBlob(b => res(b), 'image/webp', 0.82));
+      if (!blob || blob.size === 0) return file;
+      return new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' });
+    } catch { return file; }
+  }
+
   /** Upload a photo file → profile photo (or gallery if one exists). Returns the URL or null. */
   const uploadPhotoFile = async (file: File): Promise<string | null> => {
     if (file.size > MAX_PHOTO_BYTES) {
@@ -248,8 +277,9 @@ export default function BuildPage() {
     }
     setUploading(true);
     try {
+      const toUpload = await compressToWebp(file);
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', toUpload);
       const res = await fetch('/api/media', { method: 'POST', body: fd });
       const out = await res.json().catch(() => null);
       if (!res.ok) throw new Error(out?.error || `upload failed (${res.status})`);
